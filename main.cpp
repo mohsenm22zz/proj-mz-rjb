@@ -7,40 +7,37 @@
 #include <map>
 #include <algorithm> // For std::any_of, std::stod for older C++ versions if needed
 
-// It's good practice to use std:: prefix or import specific names
-// For brevity in this example, 'using namespace std;' is kept from original
 using namespace std;
 
 // Forward declarations
 class Node;
 class Component;
 class Resistor;
-class Capacitor; // Corrected spelling and to be defined
-class Inductor;  // To be defined
-class Diode;     // To be defined
+class Capacitor;
+class Inductor;
+class Diode;
 class VoltageSource;
-class CurrentSource; // To be defined
+class CurrentSource;
 class Circuit;
 
-// Node Class
 class Node {
 public:
     string name;
-    int num; // Unique numerical identifier for matrix operations
+    int num;/// شماره گره
     static int nextNum;
     double voltage;
-    bool isGround; // Flag to indicate if the node is a ground node
+    bool isGround;
 
     Node() : name(""), num(nextNum++), voltage(0.0), isGround(false) {}
 
-    double getVoltage() const { // const correct
+    double getVoltage() const {
         if (isGround) return 0.0;
         return voltage;
     }
 
     void setVoltage(double v) {
         if (isGround) {
-            voltage = 0.0; // Ground node voltage is always 0
+            voltage = 0.0;
         } else {
             voltage = v;
         }
@@ -54,9 +51,8 @@ public:
     }
 };
 
-int Node::nextNum = 0; // Initialize static member
+int Node::nextNum = 0;
 
-// Component Base Class
 class Component {
 public:
     string name;
@@ -65,17 +61,14 @@ public:
 
     Component() : name(""), node1(nullptr), node2(nullptr) {}
 
-    // Pure virtual functions for getting current and voltage across the component
     virtual double getCurrent() = 0;
     virtual double getVoltage() = 0;
-
-    // Virtual function for setting current (primarily for sources)
+    /// برای منبع جریان
     virtual void setCurrent(double c) {};
 
-    virtual ~Component() {}; // Virtual destructor for proper cleanup
+    virtual ~Component() {};
 };
 
-// Resistor Class
 class Resistor : public Component {
 public:
     double resistance;
@@ -83,9 +76,9 @@ public:
     Resistor() : resistance(0.0) {}
 
     double getCurrent() override {
-        if (resistance == 0) return HUGE_VAL; // Avoid division by zero, though ideally resistance shouldn't be 0
-        if (!node1 || !node2) return 0.0; // Should not happen if circuit is well-formed
-        return (node1->getVoltage() - node2->getVoltage()) / resistance;
+        if (resistance == 0) return HUGE_VAL;/// error بدهد
+        if (!node1 || !node2) return 0.0;
+        return fabs(node1->getVoltage() - node2->getVoltage()) / resistance;
     }
 
     double getVoltage() override {
@@ -94,7 +87,6 @@ public:
     }
 };
 
-// Capacitor Class (from second snippet)
 class Capacitor : public Component {
 public:
     double capacitance;
@@ -256,12 +248,12 @@ public:
     vector<Capacitor> capacitors;
     vector<Inductor> inductors;
     vector<Diode> diodes;
-    VoltageSource VIN; // Assuming one primary DC voltage source for now as in original
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    VoltageSource VIN; /// برای n منبع باید اصلاح شود
     vector<CurrentSource> currentSources;
     vector<string> groundNodeNames; // Names of nodes designated as ground
 
     Circuit() {
-        VIN.name = "VIN"; // Default name for the main voltage source
     }
 
     Node* findNode(const string& find_from_name) {
@@ -310,7 +302,19 @@ public:
         }
         return nullptr;
     }
+    vector<vector<double>> G(){};
+    vector<vector<double>> B(){};
+    vector<vector<double>> C(){};
+    vector<vector<double>> D(){};
+    vector<vector<double>> J(){};
+    vector<vector<double>> E(){};
 
+    vector<vector<double>> MNA_A;
+    vector<double> MNA_v;
+    vector<double> MNA_x;
+    void set_MNA_A(){};
+    void set_MNA_v(){};
+    void set_MNA_x(){};
 
     // Stubs for MNA matrix construction if moved into Circuit class
     // vector<vector<double>> MNA_A() {};
@@ -335,104 +339,7 @@ Circuit readCircuitFromFile(const string& filename);
 void saveResultsToFile(const Circuit& circuit, const string& filename);
 
 // Function to handle circuit commands
-bool command_handling(Circuit& circuit, const vector<string>& cmds, vector<vector<string>>& readCommands) {
-    if (cmds.empty()) return true; // Skip empty lines
-
-    if (cmds[0] == "end") {
-        return false; // Signal to end circuit description input
-    } else if (cmds[0] == "add") {
-        if (cmds.size() < 2) { cerr << "Error: 'add' command needs more arguments." << endl; return true;}
-        if (cmds[1] == "node") {
-            if (cmds.size() < 3) { cerr << "Error: 'add node' needs a name." << endl; return true;}
-            circuit.addNode(cmds[2]);
-        } else if (cmds[1] == "resistor") { // add resistor <value> <name> <node1> <node2>
-            if (cmds.size() < 6) { cerr << "Error: 'add resistor' needs value, name, node1, node2." << endl; return true;}
-            Resistor newResistor;
-            try { newResistor.resistance = stod(cmds[2]); } catch (const std::exception& e) { cerr << "Error: Invalid resistance value for " << cmds[3] << endl; return true; }
-            newResistor.name = cmds[3];
-            newResistor.node1 = circuit.findNode(cmds[4]);
-            newResistor.node2 = circuit.findNode(cmds[5]);
-            if (!newResistor.node1 || !newResistor.node2) { cerr << "Error: Node(s) not found for resistor " << newResistor.name << endl; return true; }
-            circuit.resistors.push_back(newResistor);
-        } else if (cmds[1] == "capacitor") { // add capacitor <value> <name> <node1> <node2>
-            if (cmds.size() < 6) { cerr << "Error: 'add capacitor' needs value, name, node1, node2." << endl; return true;}
-            Capacitor newCap;
-            try { newCap.capacitance = stod(cmds[2]); } catch (const std::exception& e) { cerr << "Error: Invalid capacitance value for " << cmds[3] << endl; return true; }
-            newCap.name = cmds[3];
-            newCap.node1 = circuit.findNode(cmds[4]);
-            newCap.node2 = circuit.findNode(cmds[5]);
-            if (!newCap.node1 || !newCap.node2) { cerr << "Error: Node(s) not found for capacitor " << newCap.name << endl; return true; }
-            circuit.capacitors.push_back(newCap);
-        } else if (cmds[1] == "inductor") { // add inductor <value> <name> <node1> <node2>
-            if (cmds.size() < 6) { cerr << "Error: 'add inductor' needs value, name, node1, node2." << endl; return true;}
-            Inductor newInd;
-            try { newInd.inductance = stod(cmds[2]); } catch (const std::exception& e) { cerr << "Error: Invalid inductance value for " << cmds[3] << endl; return true; }
-            newInd.name = cmds[3];
-            newInd.node1 = circuit.findNode(cmds[4]);
-            newInd.node2 = circuit.findNode(cmds[5]);
-            if (!newInd.node1 || !newInd.node2) { cerr << "Error: Node(s) not found for inductor " << newInd.name << endl; return true; }
-            circuit.inductors.push_back(newInd);
-        } else if (cmds[1] == "diode") { // add diode <name> <node1> <node2> [Is=<val>] [Vt=<val>] [n=<val>]
-            if (cmds.size() < 5) { cerr << "Error: 'add diode' needs name, node1, node2." << endl; return true;}
-            Diode newDiode;
-            newDiode.name = cmds[2];
-            newDiode.node1 = circuit.findNode(cmds[3]);
-            newDiode.node2 = circuit.findNode(cmds[4]);
-            if (!newDiode.node1 || !newDiode.node2) { cerr << "Error: Node(s) not found for diode " << newDiode.name << endl; return true; }
-            // Optional parameters for diode
-            for (size_t i = 5; i < cmds.size(); ++i) {
-                string param = cmds[i];
-                size_t eqPos = param.find('=');
-                if (eqPos != string::npos) {
-                    string key = param.substr(0, eqPos);
-                    string valStr = param.substr(eqPos + 1);
-                    try {
-                        double val = stod(valStr);
-                        if (key == "Is") newDiode.Is = val;
-                        else if (key == "Vt") newDiode.Vt = val;
-                        else if (key == "n") newDiode.n = val;
-                    } catch (const std::exception& e) {
-                        cerr << "Warning: Invalid value for diode parameter " << key << endl;
-                    }
-                }
-            }
-            circuit.diodes.push_back(newDiode);
-        } else if (cmds[1] == "voltage" && cmds.size() > 2 && cmds[2] == "source") { // add voltage source <value> <node1_name> <node2_name> (VIN is main, this could be for others if generalized)
-            if (cmds.size() < 6) { cerr << "Error: 'add voltage source' needs value, name (VIN implicit), node1, node2." << endl; return true;}
-            // Assuming this command configures the main VIN source
-            try { circuit.VIN.value = stod(cmds[3]); } catch (const std::exception& e) { cerr << "Error: Invalid voltage for VIN." << endl; return true; }
-            circuit.VIN.node1 = circuit.findNode(cmds[4]); // Positive terminal
-            circuit.VIN.node2 = circuit.findNode(cmds[5]); // Negative terminal
-            if (!circuit.VIN.node1 || !circuit.VIN.node2) { cerr << "Error: Node(s) not found for VIN." << endl; return true;}
-        } else if (cmds[1] == "current" && cmds.size() > 2 && cmds[2] == "source") { // add current source <value> <name> <node_from> <node_to>
-            if (cmds.size() < 7) { cerr << "Error: 'add current source' needs value, name, node_from, node_to." << endl; return true;}
-            CurrentSource newCS;
-            try { newCS.value = stod(cmds[3]); } catch (const std::exception& e) { cerr << "Error: Invalid current value for " << cmds[4] << endl; return true; }
-            newCS.name = cmds[4];
-            newCS.node2 = circuit.findNode(cmds[5]); // Current flows FROM node2
-            newCS.node1 = circuit.findNode(cmds[6]); // Current flows TO node1
-            if (!newCS.node1 || !newCS.node2) { cerr << "Error: Node(s) not found for current source " << newCS.name << endl; return true; }
-            circuit.currentSources.push_back(newCS);
-        }
-        else if (cmds[1] == "ground") { // add ground <node_name>
-            if (cmds.size() < 3) { cerr << "Error: 'add ground' needs a node name." << endl; return true;}
-            circuit.groundNodeNames.push_back(cmds[2]);
-            Node* gndNode = circuit.findNode(cmds[2]);
-            if (gndNode) {
-                gndNode->setGround(true);
-            } else {
-                cerr << "Error: Node " << cmds[2] << " not found for ground connection." << endl;
-            }
-        } else {
-            cerr << "Warning: Unknown 'add' command type: " << cmds[1] << endl;
-        }
-    } else if (cmds[0] == "read") { // read node voltage <name> | read current <comp_name> | read voltage <comp_name>
-        readCommands.push_back(cmds);
-    } else {
-        cerr << "Warning: Unknown command: " << cmds[0] << endl;
-    }
-    return true; // Continue processing commands
-}
+bool command_handling(Circuit& circuit, const vector<string>& cmds, vector<vector<string>>& readCommands);
 
 // Main Function
 int main() {
@@ -839,4 +746,103 @@ void saveResultsToFile(const Circuit& circuit, const string& filename) {
     // }
     // ... write data ...
     // outputFile.close();
+}
+
+bool command_handling(Circuit& circuit, const vector<string>& cmds, vector<vector<string>>& readCommands) {
+    if (cmds.empty()) return true; // Skip empty lines
+
+    if (cmds[0] == "end") {
+        return false; // Signal to end circuit description input
+    } else if (cmds[0] == "add") {
+        if (cmds.size() < 2) { cerr << "Error: 'add' command needs more arguments." << endl; return true;}
+        if (cmds[1] == "node") {
+            if (cmds.size() < 3) { cerr << "Error: 'add node' needs a name." << endl; return true;}
+            circuit.addNode(cmds[2]);
+        } else if (cmds[1] == "resistor") { // add resistor <value> <name> <node1> <node2>
+            if (cmds.size() < 6) { cerr << "Error: 'add resistor' needs value, name, node1, node2." << endl; return true;}
+            Resistor newResistor;
+            try { newResistor.resistance = stod(cmds[2]); } catch (const std::exception& e) { cerr << "Error: Invalid resistance value for " << cmds[3] << endl; return true; }
+            newResistor.name = cmds[3];
+            newResistor.node1 = circuit.findNode(cmds[4]);
+            newResistor.node2 = circuit.findNode(cmds[5]);
+            if (!newResistor.node1 || !newResistor.node2) { cerr << "Error: Node(s) not found for resistor " << newResistor.name << endl; return true; }
+            circuit.resistors.push_back(newResistor);
+        } else if (cmds[1] == "capacitor") { // add capacitor <value> <name> <node1> <node2>
+            if (cmds.size() < 6) { cerr << "Error: 'add capacitor' needs value, name, node1, node2." << endl; return true;}
+            Capacitor newCap;
+            try { newCap.capacitance = stod(cmds[2]); } catch (const std::exception& e) { cerr << "Error: Invalid capacitance value for " << cmds[3] << endl; return true; }
+            newCap.name = cmds[3];
+            newCap.node1 = circuit.findNode(cmds[4]);
+            newCap.node2 = circuit.findNode(cmds[5]);
+            if (!newCap.node1 || !newCap.node2) { cerr << "Error: Node(s) not found for capacitor " << newCap.name << endl; return true; }
+            circuit.capacitors.push_back(newCap);
+        } else if (cmds[1] == "inductor") { // add inductor <value> <name> <node1> <node2>
+            if (cmds.size() < 6) { cerr << "Error: 'add inductor' needs value, name, node1, node2." << endl; return true;}
+            Inductor newInd;
+            try { newInd.inductance = stod(cmds[2]); } catch (const std::exception& e) { cerr << "Error: Invalid inductance value for " << cmds[3] << endl; return true; }
+            newInd.name = cmds[3];
+            newInd.node1 = circuit.findNode(cmds[4]);
+            newInd.node2 = circuit.findNode(cmds[5]);
+            if (!newInd.node1 || !newInd.node2) { cerr << "Error: Node(s) not found for inductor " << newInd.name << endl; return true; }
+            circuit.inductors.push_back(newInd);
+        } else if (cmds[1] == "diode") { // add diode <name> <node1> <node2> [Is=<val>] [Vt=<val>] [n=<val>]
+            if (cmds.size() < 5) { cerr << "Error: 'add diode' needs name, node1, node2." << endl; return true;}
+            Diode newDiode;
+            newDiode.name = cmds[2];
+            newDiode.node1 = circuit.findNode(cmds[3]);
+            newDiode.node2 = circuit.findNode(cmds[4]);
+            if (!newDiode.node1 || !newDiode.node2) { cerr << "Error: Node(s) not found for diode " << newDiode.name << endl; return true; }
+            // Optional parameters for diode
+            for (size_t i = 5; i < cmds.size(); ++i) {
+                string param = cmds[i];
+                size_t eqPos = param.find('=');
+                if (eqPos != string::npos) {
+                    string key = param.substr(0, eqPos);
+                    string valStr = param.substr(eqPos + 1);
+                    try {
+                        double val = stod(valStr);
+                        if (key == "Is") newDiode.Is = val;
+                        else if (key == "Vt") newDiode.Vt = val;
+                        else if (key == "n") newDiode.n = val;
+                    } catch (const std::exception& e) {
+                        cerr << "Warning: Invalid value for diode parameter " << key << endl;
+                    }
+                }
+            }
+            circuit.diodes.push_back(newDiode);
+        } else if (cmds[1] == "voltage" && cmds.size() > 2 && cmds[2] == "source") { // add voltage source <value> <node1_name> <node2_name> (VIN is main, this could be for others if generalized)
+            if (cmds.size() < 6) { cerr << "Error: 'add voltage source' needs value, name (VIN implicit), node1, node2." << endl; return true;}
+            // Assuming this command configures the main VIN source
+            try { circuit.VIN.value = stod(cmds[3]); } catch (const std::exception& e) { cerr << "Error: Invalid voltage for VIN." << endl; return true; }
+            circuit.VIN.node1 = circuit.findNode(cmds[4]); // Positive terminal
+            circuit.VIN.node2 = circuit.findNode(cmds[5]); // Negative terminal
+            if (!circuit.VIN.node1 || !circuit.VIN.node2) { cerr << "Error: Node(s) not found for VIN." << endl; return true;}
+        } else if (cmds[1] == "current" && cmds.size() > 2 && cmds[2] == "source") { // add current source <value> <name> <node_from> <node_to>
+            if (cmds.size() < 7) { cerr << "Error: 'add current source' needs value, name, node_from, node_to." << endl; return true;}
+            CurrentSource newCS;
+            try { newCS.value = stod(cmds[3]); } catch (const std::exception& e) { cerr << "Error: Invalid current value for " << cmds[4] << endl; return true; }
+            newCS.name = cmds[4];
+            newCS.node2 = circuit.findNode(cmds[5]); // Current flows FROM node2
+            newCS.node1 = circuit.findNode(cmds[6]); // Current flows TO node1
+            if (!newCS.node1 || !newCS.node2) { cerr << "Error: Node(s) not found for current source " << newCS.name << endl; return true; }
+            circuit.currentSources.push_back(newCS);
+        }
+        else if (cmds[1] == "ground") { // add ground <node_name>
+            if (cmds.size() < 3) { cerr << "Error: 'add ground' needs a node name." << endl; return true;}
+            circuit.groundNodeNames.push_back(cmds[2]);
+            Node* gndNode = circuit.findNode(cmds[2]);
+            if (gndNode) {
+                gndNode->setGround(true);
+            } else {
+                cerr << "Error: Node " << cmds[2] << " not found for ground connection." << endl;
+            }
+        } else {
+            cerr << "Warning: Unknown 'add' command type: " << cmds[1] << endl;
+        }
+    } else if (cmds[0] == "read") { // read node voltage <name> | read current <comp_name> | read voltage <comp_name>
+        readCommands.push_back(cmds);
+    } else {
+        cerr << "Warning: Unknown command: " << cmds[0] << endl;
+    }
+    return true; // Continue processing commands
 }
