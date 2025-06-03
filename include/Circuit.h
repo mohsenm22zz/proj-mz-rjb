@@ -43,6 +43,8 @@ public:
 
     VoltageSource *findVoltageSource(const string &find_from_name);
 
+    vector<Component> *findComponent(Node *n1, Node *n2, string &type);
+
     vector<vector<double>> G();
 
     vector<vector<double>> B();
