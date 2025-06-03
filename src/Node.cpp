@@ -1,4 +1,7 @@
 #include "Node.h"
+
+using namespace std;
+
 int Node::nextNum = 0;
 Node::Node() : name(""), num(nextNum++), voltage(0.0), isGround(false) {}
 

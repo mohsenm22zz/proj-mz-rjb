@@ -68,23 +68,17 @@ void dcAnalysis(Circuit& circuit) {
         // 2. Voltage Sources (Main VIN)
         // This handles VIN if one of its terminals is ground, or if it directly sets a node voltage.
         // A more general MNA would handle floating sources with an extra current variable.
-        if (circuit.VIN.node1 && circuit.VIN.node2) {
-            Node *vinN1 = circuit.VIN.node1; // Positive terminal
-            Node *vinN2 = circuit.VIN.node2; // Negative terminal
-
-            if (vinN1->isGround && !vinN2->isGround) { // Positive terminal grounded, negative is unknown
-                int mx2 = nodeNumToMatrixIndex[vinN2->num];
-                fill(A[mx2].begin(), A[mx2].end(), 0.0); // Clear row
-                A[mx2][mx2] = 1.0;
-                b[mx2] = -circuit.VIN.value; // V_n2 - V_n1(0) = -VIN.value  => V_n2 = -VIN.value
-            } else if (!vinN1->isGround && vinN2->isGround) { // Negative terminal grounded, positive is unknown
-                int mx1 = nodeNumToMatrixIndex[vinN1->num];
-                fill(A[mx1].begin(), A[mx1].end(), 0.0); // Clear row
-                A[mx1][mx1] = 1.0;
-                b[mx1] = circuit.VIN.value; // V_n1 - V_n2(0) = VIN.value => V_n1 = VIN.value
-            } else if (!vinN1->isGround && !vinN2->isGround) {
-                cerr << "Warning: Floating voltage source VIN detected. Simplified MNA may not be accurate." << endl;
-            }
+        for (auto &vs : circuit.voltageSources) {
+//            if (!vs.node1 || !vs.node2) continue;
+//            Node *n_to = vs.node1;    // Current flows TO this node
+//            Node *n_from = vs.node2; // Current flows FROM this node
+//
+//            if (!n_to->isGround) {
+//                b[nodeNumToMatrixIndex[n_to->num]] += vs.value;
+//            }
+//            if (!n_from->isGround) {
+//                b[nodeNumToMatrixIndex[n_from->num]] -= vs.value;
+//            }
         }
 
         // 3. Current Sources
@@ -134,18 +128,9 @@ void dcAnalysis(Circuit& circuit) {
             cerr << "Error: Could not solve for node voltages. Matrix may be singular or ill-conditioned." << endl;
         }
 
-        // Calculate current through VIN (Simplified)
         double i_vin_calc = 0.0;
-        if (circuit.VIN.node1 && circuit.VIN.node2) {
-            Node* n_plus_vin = circuit.VIN.node1;
-            // This calculation of i_vin is simplified and might need refinement for a general circuit.
-            // A full MNA would solve for source currents as part of the system.
-            // For now, it approximates based on other components.
-            // Example: sum currents from n_plus_vin through resistors connected to it
-            // if (n_plus_vin->isGround && !circuit.VIN.node2->isGround) { /* ... */ }
-            // This section is commented out in original main and needs proper MNA extension.
-        }
-        // circuit.VIN.setCurrent(i_vin_calc); // Uncomment and implement properly if needed
+        /// vs
+
     } else if (circuit.nodes.empty() && !circuit.groundNodeNames.empty()) {
         // Only ground nodes, all voltages are 0.
     } else if (circuit.nodes.empty()){

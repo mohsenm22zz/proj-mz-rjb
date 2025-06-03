@@ -55,7 +55,7 @@ int main() {
             if (cmd_parts.size() < 3) { cerr << "Error: 'read current' needs component name." << endl; continue; }
             string compName = cmd_parts[2];
             if (compName == "VIN") {
-                cout << "VIN current = " << circuit.VIN.getCurrent() << " A" << endl;
+
             } else if (Resistor* r = circuit.findResistor(compName)) {
                 cout << r->name << " current = " << fabs(r->getCurrent()) << " A" << endl;
             } else if (Capacitor* c = circuit.findCapacitor(compName)) {
@@ -74,7 +74,7 @@ int main() {
             if (cmd_parts.size() < 3) { cerr << "Error: 'read voltage' needs component name." << endl; continue; }
             string compName = cmd_parts[2];
             if (compName == "VIN") {
-                cout << "VIN voltage = " << circuit.VIN.getVoltage() << " V" << endl;
+
             } else if (Resistor* r = circuit.findResistor(compName)) {
                 cout << r->name << " voltage = " << r->getVoltage() << " V" << endl;
             } else if (Capacitor* c = circuit.findCapacitor(compName)) {

@@ -1,68 +1,97 @@
 #include "Circuit.h"
 
+using namespace std;
+
 Circuit::Circuit() {}
 
-Node* Circuit::findNode(const std::string& find_from_name) {
-    for (auto &node : nodes) {
+Node *Circuit::findNode(const string &find_from_name) {
+    for (auto &node: nodes) {
         if (node.name == find_from_name) return &node;
     }
     return nullptr;
 }
 
-Node* Circuit::findNodeByNum(int num_to_find) {
-    for (auto &node : nodes) {
+Node *Circuit::findNodeByNum(int num_to_find) {
+    for (auto &node: nodes) {
         if (node.num == num_to_find) return &node;
     }
     return nullptr;
 }
 
-Resistor* Circuit::findResistor(const std::string& find_from_name) {
-    for (auto &res : resistors) {
-        if (res.name == find_from_name) return &res;
+Resistor *Circuit::findResistor(const string &find_from_name, Node *n1, Node *n2) {
+    if (find_from_name != "findbynode") {
+        for (auto &res: resistors) {
+            if (res.name == find_from_name) return &res;
+        }
     }
     return nullptr;
 }
 
-Capacitor* Circuit::findCapacitor(const std::string& find_from_name) {
-    for (auto &cap : capacitors) {
-        if (cap.name == find_from_name) return &cap;
+Capacitor *Circuit::findCapacitor(const string &find_from_name, Node *n1, Node *n2) {
+    if (find_from_name != "findbynode") {
+        for (auto &cap: capacitors) {
+            if (cap.name == find_from_name) return &cap;
+        }
     }
     return nullptr;
 }
 
-Inductor* Circuit::findInductor(const std::string& find_from_name) {
-    for (auto &ind : inductors) {
-        if (ind.name == find_from_name) return &ind;
+Inductor *Circuit::findInductor(const string &find_from_name, Node *n1, Node *n2) {
+    if (find_from_name != "findbynode") {
+        for (auto &ind: inductors) {
+            if (ind.name == find_from_name) return &ind;
+        }
     }
     return nullptr;
 }
 
-Diode* Circuit::findDiode(const std::string& find_from_name) {
-    for (auto &dio : diodes) {
-        if (dio.name == find_from_name) return &dio;
+Diode *Circuit::findDiode(const string &find_from_name, Node *n1, Node *n2) {
+    if (find_from_name != "findbynode") {
+        for (auto &dio: diodes) {
+            if (dio.name == find_from_name) return &dio;
+        }
     }
     return nullptr;
 }
 
-CurrentSource* Circuit::findCurrentSource(const std::string& find_from_name) {
-    for (auto &cs : currentSources) {
-        if (cs.name == find_from_name) return &cs;
+
+VoltageSource *Circuit::findVoltageSource(const string &find_from_name, Node *n1, Node *n2) {
+    if (find_from_name != "findbynode") {
+        for (auto &vs: voltageSources) {
+            if (vs.name == find_from_name) return &vs;
+        }
     }
     return nullptr;
 }
 
-std::vector<std::vector<double>> Circuit::G(){ return {}; }
-std::vector<std::vector<double>> Circuit::B(){ return {}; }
-std::vector<std::vector<double>> Circuit::C(){ return {}; }
-std::vector<std::vector<double>> Circuit::D(){ return {}; }
-std::vector<std::vector<double>> Circuit::J(){ return {}; }
-std::vector<std::vector<double>> Circuit::E(){ return {}; }
+CurrentSource *Circuit::findCurrentSource(const string &find_from_name, Node *n1, Node *n2) {
+    if (find_from_name != "findbynode") {
+        for (auto &cs: currentSources) {
+            if (cs.name == find_from_name) return &cs;
+        }
+    }
+    return nullptr;
+}
 
-void Circuit::set_MNA_A(){}
-void Circuit::set_MNA_v(){}
-void Circuit::set_MNA_x(){}
+vector<vector<double>> Circuit::G() { return {}; }
 
-void Circuit::addNode(const std::string& name) {
+vector<vector<double>> Circuit::B() { return {}; }
+
+vector<vector<double>> Circuit::C() { return {}; }
+
+vector<vector<double>> Circuit::D() { return {}; }
+
+vector<vector<double>> Circuit::J() { return {}; }
+
+vector<vector<double>> Circuit::E() { return {}; }
+
+void Circuit::set_MNA_A() {}
+
+void Circuit::set_MNA_v() {}
+
+void Circuit::set_MNA_x() {}
+
+void Circuit::addNode(const string &name) {
     if (!findNode(name)) {
         Node newNode;
         newNode.name = name;

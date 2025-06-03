@@ -73,10 +73,6 @@ bool command_handling(Circuit& circuit, const vector<string>& cmds, vector<vecto
         } else if (cmds[1] == "voltage" && cmds.size() > 2 && cmds[2] == "source") { // add voltage source <value> <node1_name> <node2_name> (VIN is main, this could be for others if generalized)
             if (cmds.size() < 6) { cerr << "Error: 'add voltage source' needs value, name (VIN implicit), node1, node2." << endl; return true;}
             // Assuming this command configures the main VIN source
-            try { circuit.VIN.value = stod(cmds[3]); } catch (const exception& e) { cerr << "Error: Invalid voltage for VIN." << endl; return true; }
-            circuit.VIN.node1 = circuit.findNode(cmds[4]); // Positive terminal
-            circuit.VIN.node2 = circuit.findNode(cmds[5]); // Negative terminal
-            if (!circuit.VIN.node1 || !circuit.VIN.node2) { cerr << "Error: Node(s) not found for VIN." << endl; return true;}
         } else if (cmds[1] == "current" && cmds.size() > 2 && cmds[2] == "source") { // add current source <value> <name> <node_from> <node_to>
             if (cmds.size() < 7) { cerr << "Error: 'add current source' needs value, name, node_from, node_to." << endl; return true;}
             CurrentSource newCS;
@@ -135,9 +131,6 @@ void handleErrors(const Circuit& circuit) {
         if (!ind.node1 || !ind.node2) {
             cerr << "Error: Inductor " << ind.name << " has one or more null nodes." << endl;
         }
-    }
-    if (circuit.VIN.node1 && circuit.VIN.node2 && circuit.VIN.node1 == circuit.VIN.node2) {
-        cerr << "Error: VIN source has both terminals connected to the same node." << endl;
     }
     for(const auto& cs : circuit.currentSources) {
         if (cs.node1 && cs.node2 && cs.node1 == cs.node2) {

@@ -2,6 +2,8 @@
 #include "Node.h"
 #include <cmath>
 
+using namespace std;
+
 double Inductor::getCurrent() {
     return current;
 }

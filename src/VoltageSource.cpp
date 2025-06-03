@@ -1,5 +1,7 @@
 #include "VoltageSource.h"
 
+using namespace std;
+
 double VoltageSource::getCurrent() {
     return current;
 }

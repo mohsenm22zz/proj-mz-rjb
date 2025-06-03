@@ -21,35 +21,49 @@ public:
     vector<Capacitor> capacitors;
     vector<Inductor> inductors;
     vector<Diode> diodes;
-
-    VoltageSource VIN; /// For now, assume a single VIN source. Needs refactoring for multiple.
+    vector<VoltageSource> voltageSources;
     vector<CurrentSource> currentSources;
     vector<string> groundNodeNames;
 
     Circuit();
 
-    Node* findNode(const string& find_from_name);
-    Node* findNodeByNum(int num_to_find);
+    Node *findNode(const string &find_from_name);
 
-    Resistor* findResistor(const string& find_from_name);
-    Capacitor* findCapacitor(const string& find_from_name);
-    Inductor* findInductor(const string& find_from_name);
-    Diode* findDiode(const string& find_from_name);
-    CurrentSource* findCurrentSource(const string& find_from_name);
+    Node *findNodeByNum(int num_to_find);
+
+    Resistor *findResistor(const string &find_from_name, Node *n1, Node *n2);
+
+    Capacitor *findCapacitor(const string &find_from_name, Node *n1, Node *n2);
+
+    Inductor *findInductor(const string &find_from_name, Node *n1, Node *n2);
+
+    Diode *findDiode(const string &find_from_name, Node *n1, Node *n2);
+
+    CurrentSource *findCurrentSource(const string &find_from_name, Node *n1, Node *n2);
+
+    VoltageSource *findVoltageSource(const string &find_from_name, Node *n1, Node *n2);
 
     vector<vector<double>> G();
+
     vector<vector<double>> B();
+
     vector<vector<double>> C();
+
     vector<vector<double>> D();
+
     vector<vector<double>> J();
+
     vector<vector<double>> E();
-    
+
     vector<vector<double>> MNA_A;
     vector<double> MNA_v;
     vector<double> MNA_x;
+
     void set_MNA_A();
+
     void set_MNA_v();
+
     void set_MNA_x();
 
-    void addNode(const string& name);
+    void addNode(const string &name);
 };
