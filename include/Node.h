@@ -1,9 +1,10 @@
 #pragma once
 #include <string>
 
+using namespace std;
 class Node {
 public:
-    std::string name;
+    string name;
     int num;
     static int nextNum;
     double voltage;

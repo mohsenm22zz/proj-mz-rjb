@@ -31,17 +31,17 @@ public:
 
     Node *findNodeByNum(int num_to_find);
 
-    Resistor *findResistor(const string &find_from_name, Node *n1, Node *n2);
+    Resistor *findResistor(const string &find_from_name);
 
-    Capacitor *findCapacitor(const string &find_from_name, Node *n1, Node *n2);
+    Capacitor *findCapacitor(const string &find_from_name);
 
-    Inductor *findInductor(const string &find_from_name, Node *n1, Node *n2);
+    Inductor *findInductor(const string &find_from_name);
 
-    Diode *findDiode(const string &find_from_name, Node *n1, Node *n2);
+    Diode *findDiode(const string &find_from_name);
 
-    CurrentSource *findCurrentSource(const string &find_from_name, Node *n1, Node *n2);
+    CurrentSource *findCurrentSource(const string &find_from_name);
 
-    VoltageSource *findVoltageSource(const string &find_from_name, Node *n1, Node *n2);
+    VoltageSource *findVoltageSource(const string &find_from_name);
 
     vector<vector<double>> G();
 
