@@ -296,13 +296,15 @@ vector<double> Circuit::E() { /// مقادیر منابع ولتاژ و بخش �
     }
     if (delta_t != 0) {
         for (int k = 0; k < num_inductors; ++k) {
-            int inductor_eq_row = num_voltage_sources + k;
-            e_vector[inductor_eq_row] = -(inductors[k].inductance / delta_t) * inductors[k].prevCurrent;
+            int inductor_row = num_voltage_sources + k;
+            e_vector[inductor_row] = -(inductors[k].inductance / delta_t) * inductors[k].prevCurrent;
         }
     } else {
     }
     return e_vector;
 }
+
+/// Av=x
 
 void Circuit::set_MNA_A() {
     vector<vector<double>> g_mat = G();
@@ -310,86 +312,86 @@ void Circuit::set_MNA_A() {
     vector<vector<double>> c_mat = C();
     vector<vector<double>> d_mat = D();
 
-    int n_eq = g_mat.size();
-    int m_eq = 0;
+    int n = g_mat.size();
+    int m = 0;
 
     if (!b_mat.empty() && !b_mat[0].empty()) {
-        m_eq = b_mat[0].size();
+        m = b_mat[0].size();
     } else if (!c_mat.empty()) {
-        m_eq = c_mat.size();
+        m = c_mat.size();
     } else if (!d_mat.empty()) {
-        m_eq = d_mat.size();
+        m = d_mat.size();
     }
 
 
-    if (n_eq == 0 && m_eq == 0) {
+    if (n == 0 && m == 0) {
         MNA_A.clear();
         return;
     }
 
-    MNA_A.assign(n_eq + m_eq, vector<double>(n_eq + m_eq, 0.0));
+    MNA_A.assign(n + m, vector<double>(n + m, 0.0));
 
-    for (int i = 0; i < n_eq; ++i) {
-        for (int j = 0; j < n_eq; ++j) {
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
             if (i < g_mat.size() && j < g_mat[i].size()) {
                 MNA_A[i][j] = g_mat[i][j];
             }
         }
     }
 
-    if (m_eq > 0 && !b_mat.empty()) {
-        for (int i = 0; i < n_eq; ++i) {
-            for (int j = 0; j < m_eq; ++j) {
+    if (m > 0 && !b_mat.empty()) {
+        for (int i = 0; i < n; ++i) {
+            for (int j = 0; j < m; ++j) {
                 if (i < b_mat.size() && j < b_mat[i].size()) {
-                    MNA_A[i][n_eq + j] = b_mat[i][j];
+                    MNA_A[i][n + j] = b_mat[i][j];
                 }
             }
         }
     }
 
-    if (m_eq > 0 && !c_mat.empty()) {
-        for (int i = 0; i < m_eq; ++i) {
-            for (int j = 0; j < n_eq; ++j) {
+    if (m > 0 && !c_mat.empty()) {
+        for (int i = 0; i < m; ++i) {
+            for (int j = 0; j < n; ++j) {
                 if (i < c_mat.size() && j < c_mat[i].size()) {
-                    MNA_A[n_eq + i][j] = c_mat[i][j];
+                    MNA_A[n + i][j] = c_mat[i][j];
                 }
             }
         }
     }
-    if (m_eq > 0 && !d_mat.empty()) {
-        for (int i = 0; i < m_eq; ++i) {
-            for (int j = 0; j < m_eq; ++j) {
+    if (m > 0 && !d_mat.empty()) {
+        for (int i = 0; i < m; ++i) {
+            for (int j = 0; j < m; ++j) {
                 if (i < d_mat.size() && j < d_mat[i].size()) {
-                    MNA_A[n_eq + i][n_eq + j] = d_mat[i][j];
+                    MNA_A[n + i][n + j] = d_mat[i][j];
                 }
             }
         }
-    }
-}
-
-void Circuit::set_MNA_v() {
-    vector<double> j_vec = J();
-    vector<double> e_vec = E();
-
-    int n_eq = j_vec.size();
-    int m_eq = e_vec.size();
-
-    if (n_eq == 0 && m_eq == 0) {
-        MNA_v.clear();
-        return;
-    }
-
-    MNA_v.assign(n_eq + m_eq, 0.0);
-
-    for (int i = 0; i < n_eq; ++i) {
-        MNA_v[i] = j_vec[i];
-    }
-    for (int i = 0; i < m_eq; ++i) {
-        MNA_v[n_eq + i] = e_vec[i];
     }
 }
 
 void Circuit::set_MNA_x() {
+    vector<double> j_vec = J();
+    vector<double> e_vec = E();
+
+    int n = j_vec.size();
+    int m = e_vec.size();
+
+    if (n == 0 && m == 0) {
+        MNA_v.clear();
+        return;
+    }
+
+    MNA_v.assign(n + m, 0.0);
+
+    for (int i = 0; i < n; ++i) {
+        MNA_v[i] = j_vec[i];
+    }
+    for (int i = 0; i < m; ++i) {
+        MNA_v[n + i] = e_vec[i];
+    }
+}
+
+void Circuit::set_MNA_v() {
     int n_vars = countNonGroundNodes();
     int m_vars = voltageSources.size() + inductors.size();
 

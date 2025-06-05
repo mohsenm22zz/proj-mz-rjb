@@ -7,18 +7,16 @@
 #include "Circuit.h"
 #include "Analysis.h"
 #include "CircuitIO.h"
-
+#include "LinearSolver.h"
 using namespace std;
 
 int main() {
+    //test_function();
+    /// test for linear solver
     Circuit circuit;
     string line;
-    vector<vector<string>> readCommands; // Commands to execute after solving
-
-    cout << fixed << setprecision(3); // Set precision for output
-
-    // --- Input Phase ---
-    // Reads circuit description from standard input using the CircuitIO function
+    vector<vector<string>> commands;
+    cout << fixed << setprecision(3);
     while (getline(cin, line)) {
         istringstream iss(line);
         vector<string> cmds;
@@ -26,21 +24,13 @@ int main() {
         while (iss >> cmd_part) {
             cmds.push_back(cmd_part);
         }
-
-        if (!command_handling(circuit, cmds, readCommands)) {
+        if (!command_handling(circuit, cmds, commands)) {
             break; // 'end' command received
         }
     }
-
-    // --- Error Handling ---
-    handleErrors(circuit); // Call the error handling function
-
-    // --- DC Analysis ---
-    dcAnalysis(circuit); // Call the DC analysis function
-
-    // --- Output Phase ---
-    // Iterate through stored 'read' commands and output results
-    for (const auto &cmd_parts : readCommands) {
+    handleErrors(circuit);
+    dcAnalysis(circuit);
+    for (const auto &cmd_parts : commands) {
         if (cmd_parts.size() < 3) { cerr << "Error: 'read' command is incomplete." << endl; continue; }
 
         if (cmd_parts[1] == "node" && cmd_parts[2] == "voltage") {
@@ -51,7 +41,7 @@ int main() {
             } else {
                 cerr << "Error: Node " << cmd_parts[3] << " not found for reading voltage." << endl;
             }
-        } else if (cmd_parts[1] == "current") { // read current <component_name_or_VIN>
+        } else if (cmd_parts[1] == "current") {
             if (cmd_parts.size() < 3) { cerr << "Error: 'read current' needs component name." << endl; continue; }
             string compName = cmd_parts[2];
             if (compName == "VIN") {

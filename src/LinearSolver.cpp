@@ -1,56 +1,80 @@
-#include "LinearSolver.h"
-#include <cmath>
 #include <iostream>
 #include <vector>
+#include <cmath>
 #include <algorithm>
+#include "LinearSolver.h"
 
 using namespace std;
 
-vector<double> gaussianElimination(vector<vector<double>> A, vector<double> b_in) {
-    vector<double> b = b_in;
+vector<double> gaussianElimination(vector<vector<double>> A, vector<double> x) {
     int n = A.size();
-    if (n == 0) return {};
-    if (A[0].size() != (size_t)n || b.size() != (size_t)n) {
-        cerr << "Error: Matrix dimensions mismatch in Gaussian elimination." << endl;
-        return {};
-    }
-
-    for (int i = 0; i < n; ++i) {
-        int maxR = i;
-        for (int k = i + 1; k < n; ++k) {
-            if (fabs(A[k][i]) > fabs(A[maxR][i])) {
-                maxR = k;
+    /// مقادیر اولیه
+    vector<vector<double>> A_i = A;
+    vector<double> x_i = x;
+    /*
+    [A][v]=[x]
+    [A|x] -> مثلث پایین ۰
+    [A_new][v]=[x_new]
+     حل از پایین
+    */
+    /// max kardan ghotr asli (صفر نباید باشند)
+    for (int i = 0; i < n; i++) {
+        int r = i;
+        for (int k = i + 1; k < n; k++) {
+            if (fabs(A_i[k][i]) > fabs(A_i[r][i])) {
+                r = k;
             }
         }
-        swap(A[i], A[maxR]);
-        swap(b[i], b[maxR]);
-
-        if (fabs(A[i][i]) < 1e-9) {
-            cerr << "Warning: Matrix is singular or nearly singular during Gaussian elimination (pivot is near zero at row " << i << ")." << endl;
-            return {};
+        if (r != i) {
+            swap(A_i[i], A_i[r]);
+            swap(x_i[i], x_i[r]);/// مستقل نوشته می شود
+            //display_vec2D(A_i);
         }
-
-        // Eliminate forward
-        for (int k = i + 1; k < n; ++k) {
-            double factor = A[k][i] / A[i][i];
-            for (int j = i; j < n; ++j) {
-                A[k][j] -= factor * A[i][j];
+        for (int k = i + 1; k < n; k++) {
+            double f = A_i[k][i] / A_i[i][i];
+            for (int j = i; j < n; j++) {
+                A_i[k][j] -= f * A_i[i][j];
             }
-            b[k] -= factor * b[i];
+            x_i[k] -= f * x_i[i];
+            //display_vec2D(A_i);
         }
     }
+    vector<double> v(n);
+    /// حل از آخر به اول
+    for (int i = n - 1; i >= 0; i--) {
+        v[i] = x_i[i];
+        for (int j = i + 1; j < n; j++) {
+            v[i] -= A_i[i][j] * v[j];
+        }
+        v[i] /= A_i[i][i];
+    }
+    return v;
+}
 
-    vector<double> x(n);
-    for (int i = n - 1; i >= 0; --i) {
-        if (fabs(A[i][i]) < 1e-9) {
-            cerr << "Warning: Matrix is singular or nearly singular during back substitution (A[i][i] is near zero at row " << i << ")." << endl;
-            return {};
+void test_function() {
+    vector<vector<double>> a = {{1, 6, 3, 6},
+                                {2, 3, 5, 6},
+                                {4, 8, 1, 3},
+                                {8, 3, 5, 7}};
+    vector<double> b = {2, 7, 3, 2};
+    display_vec2D(a);
+    display_vec(gaussianElimination(a, b));
+    display_vec(b);
+}
+
+void display_vec2D(vector<vector<double>> a) {
+    for (auto it = a.begin(); it != a.end(); it++) {
+        for (auto itr = it->begin(); itr != it->end(); itr++) {
+            cout << *itr << " ";
         }
-        x[i] = b[i];
-        for (int j = i + 1; j < n; ++j) {
-            x[i] -= A[i][j] * x[j];
-        }
-        x[i] /= A[i][i];
+        cout << endl;
     }
-    return x;
+    cout << endl << endl;
+}
+
+void display_vec(vector<double> a) {
+    for (auto it = a.begin(); it != a.end(); it++) {
+        cout << *it << endl;
+    }
+    cout << endl;
 }
