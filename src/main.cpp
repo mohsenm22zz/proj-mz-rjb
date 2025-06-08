@@ -11,39 +11,41 @@
 using namespace std;
 
 int main() {
-    //test_function();
-    /// test for linear solver
+    //test_solver();
     Circuit circuit;
     string line;
     vector<vector<string>> commands;
     cout << fixed << setprecision(3);
+    bool dc = true; //default
     while (getline(cin, line)) {
         istringstream iss(line);
         vector<string> cmds;
-        string cmd_part;
-        while (iss >> cmd_part) {
-            cmds.push_back(cmd_part);
+        string cmd;
+        while (iss >> cmd) {
+            cmds.push_back(cmd);
         }
-        if (!command_handling(circuit, cmds, commands)) {
-            break; // 'end' command received
+        if (!command_handling(circuit, cmds, commands,dc)) {
+            break;
         }
     }
     handleErrors(circuit);
+    if (dc)
     dcAnalysis(circuit);
-    for (const auto &cmd_parts : commands) {
-        if (cmd_parts.size() < 3) { cerr << "Error: 'read' command is incomplete." << endl; continue; }
+    else transientAnalysis(circuit);
+    for (const auto &cmds : commands) {
+        if (cmds.size() < 3) { cerr << "Error: 'read' command is incomplete." << endl; continue; }
 
-        if (cmd_parts[1] == "node" && cmd_parts[2] == "voltage") {
-            if (cmd_parts.size() < 4) { cerr << "Error: 'read node voltage' needs node name." << endl; continue; }
-            Node *n = circuit.findNode(cmd_parts[3]);
+        if (cmds[1] == "node" && cmds[2] == "voltage") {
+            if (cmds.size() < 4) { cerr << "Error: 'read node voltage' needs node name." << endl; continue; }
+            Node *n = circuit.findNode(cmds[3]);
             if (n) {
                 cout << n->name << " voltage = " << n->getVoltage() << " V" << endl;
             } else {
-                cerr << "Error: Node " << cmd_parts[3] << " not found for reading voltage." << endl;
+                cerr << "Error: Node " << cmds[3] << " not found for reading voltage." << endl;
             }
-        } else if (cmd_parts[1] == "current") {
-            if (cmd_parts.size() < 3) { cerr << "Error: 'read current' needs component name." << endl; continue; }
-            string compName = cmd_parts[2];
+        } else if (cmds[1] == "current") {
+            if (cmds.size() < 3) { cerr << "Error: 'read current' needs component name." << endl; continue; }
+            string compName = cmds[2];
             if (compName == "VIN") {
 
             } else if (Resistor* r = circuit.findResistor(compName)) {
@@ -60,9 +62,9 @@ int main() {
             else {
                 cerr << "Error: Component " << compName << " not found for reading current." << endl;
             }
-        } else if (cmd_parts[1] == "voltage") { // read voltage <component_name_or_VIN>
-            if (cmd_parts.size() < 3) { cerr << "Error: 'read voltage' needs component name." << endl; continue; }
-            string compName = cmd_parts[2];
+        } else if (cmds[1] == "voltage") { // read voltage <component_name_or_VIN>
+            if (cmds.size() < 3) { cerr << "Error: 'read voltage' needs component name." << endl; continue; }
+            string compName = cmds[2];
             if (compName == "VIN") {
 
             } else if (Resistor* r = circuit.findResistor(compName)) {
@@ -80,7 +82,7 @@ int main() {
                 cerr << "Error: Component " << compName << " not found for reading voltage." << endl;
             }
         } else {
-            cerr << "Warning: Unknown 'read' command: " << cmd_parts[1] << endl;
+            cerr << "Warning: Unknown 'read' command: " << cmds[1] << endl;
         }
     }
 

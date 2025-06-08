@@ -8,9 +8,8 @@
 
 using namespace std;
 
-bool command_handling(Circuit& circuit, const vector<string>& cmds, vector<vector<string>>& readCommands) {
-    if (cmds.empty()) return true; // Skip empty lines
-
+bool command_handling(Circuit& circuit, const vector<string>& cmds, vector<vector<string>>& readCommands, bool &dc) {
+    if (cmds.empty()) return true;
     if (cmds[0] == "end") {
         return false; // Signal to end circuit description input
     } else if (cmds[0] == "add") {

@@ -51,7 +51,7 @@ vector<double> gaussianElimination(vector<vector<double>> A, vector<double> x) {
     return v;
 }
 
-void test_function() {
+void test_solver() {
     vector<vector<double>> a = {{1, 6, 3, 6},
                                 {2, 3, 5, 6},
                                 {4, 8, 1, 3},

@@ -6,7 +6,7 @@
 
 using namespace std;
 
-bool command_handling(Circuit& circuit, const vector<string>& cmds, vector<vector<string>>& readCommands);
+bool command_handling(Circuit& circuit, const vector<string>& cmds, vector<vector<string>>& readCommands,bool &dc);
 
 void handleErrors(const Circuit& circuit);
 

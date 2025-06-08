@@ -410,11 +410,8 @@ void Circuit::addNode(const string &name) {
     }
 }
 
-void Circuit::setDeltaT(double dt) {
-    if (dt > 0) {
-        this->delta_t = dt;
-    } else {
-    }
+void Circuit::setDeltaT() {
+    delta_t = Tstep/10;
 }
 
 void Circuit::updateComponentStates() {

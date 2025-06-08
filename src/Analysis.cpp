@@ -1,28 +1,24 @@
-#include "Analysis.h" // Include its own header
-#include "LinearSolver.h" // dcAnalysis uses gaussianElimination
-#include "Node.h" // Though Circuit.h includes it, sometimes needed for specific type uses
-#include <iostream>   // For cout, cerr
-#include <vector>     // For vector
-#include <map>        // For map
-#include <algorithm>  // For fill
+#include "Analysis.h"
+#include "LinearSolver.h"
+#include "Node.h"
+#include <iostream>
+#include <vector>
+#include <map>
+#include <algorithm>
 
 using namespace std;
 
 void dcAnalysis(Circuit& circuit) {
     cout << "// Performing DC Analysis..." << endl;
-
-    // Set ground nodes explicitly
     for (const string& gndName : circuit.groundNodeNames) {
         Node* node = circuit.findNode(gndName);
         if (node) {
-            node->setGround(true); // This also sets voltage to 0
+            node->setGround(true);
         }
     }
-
-    // Count non-ground nodes for MNA matrix size
     vector<Node*> nonGroundNodes;
-    map<int, int> nodeNumToMatrixIndex; // Map original node number to MNA matrix index
-    vector<int> matrixIndexToNodeNum;    // Map MNA matrix index back to original node number
+    map<int, int> nodeNumToMatrixIndex;
+    vector<int> matrixIndexToNodeNum;
 
     int currentMatrixIdx = 0;
     for (auto &node : circuit.nodes) {
@@ -141,7 +137,6 @@ void dcAnalysis(Circuit& circuit) {
     }
 }
 
-void transientAnalysis(Circuit& circuit, double tstep, double tstop) {
-    cout << "// transientAnalysis function called (Not Implemented)" << endl;
-    // Implementation would go here.
+void transientAnalysis(Circuit& circuit) {
+
 }
