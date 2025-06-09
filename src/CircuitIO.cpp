@@ -74,8 +74,8 @@ bool command_handling(Circuit& circuit, const vector<string>& cmds, vector<vecto
             CurrentSource newCS;
             try { newCS.value = stonum(cmds[6]); } catch (const exception& e) { cerr << "Error: Invalid current value for " << cmds[3] << ": " << e.what() << endl; return true; }
             newCS.name = cmds[3];
-            newCS.node2 = circuit.findOrCreateNode(cmds[4]); // Current flows FROM
-            newCS.node1 = circuit.findOrCreateNode(cmds[5]); // Current flows TO
+            newCS.node2 = circuit.findOrCreateNode(cmds[4]);
+            newCS.node1 = circuit.findOrCreateNode(cmds[5]);
             circuit.currentSources.push_back(newCS);
             return true;
         }
@@ -153,7 +153,7 @@ bool command_handling(Circuit& circuit, const vector<string>& cmds, vector<vecto
     } else if (command == ".dc" || command == ".tran") {
         analysisCommands.push_back(cmds);
     } else {
-        cerr << "Warning: Unknown command: " << cmds[0] << endl;
+        cerr << "Error: Unknown command: " << cmds[0] << endl;
     }
     return true;
 }

@@ -31,7 +31,7 @@ void dcAnalysis(Circuit& circuit) {
         circuit.set_MNA_RHS();
         for(size_t i = 0; i < circuit.inductors.size(); ++i) {
             int m_idx = circuit.countNonGroundNodes() + circuit.voltageSources.size() + i;
-            circuit.MNA_A[m_idx][m_idx] = 0; // In DC, inductor has no impedance itself
+            circuit.MNA_A[m_idx][m_idx] = 0;
         }
         vector<double> solved_solution = gaussianElimination(circuit.MNA_A, circuit.MNA_RHS);
         result_from_vec(circuit, solved_solution, nonGroundNodes);
@@ -45,7 +45,6 @@ void transientAnalysis(Circuit& circuit, double t_step, double t_stop) {
     dcAnalysis(circuit);
     circuit.updateComponentStates();
     circuit.setDeltaT(t_step/10);
-
 
 
     vector<string> headers;

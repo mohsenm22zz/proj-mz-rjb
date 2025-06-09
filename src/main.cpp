@@ -13,7 +13,9 @@
 using namespace std;
 
 double stonum(const string &s);
+
 void clrscrr();
+
 int main() {
     //test_solver();
     Circuit circuit;
@@ -34,14 +36,14 @@ int main() {
                 cmds.push_back(cmd_part);
             }
             if (!cmds.empty()) {
-                if(!command_handling(circuit, cmds, analysisCommands))
+                if (!command_handling(circuit, cmds, analysisCommands))
                     break;
             }
         }
         if (line == "exit") {
             break;
         }
-
+        clrscrr();
         cout << "---=== [mz-rjb Circuit Simulator] ===---" << endl;
         handleErrors(circuit);
         for (const auto &cmd_parts: analysisCommands) {
