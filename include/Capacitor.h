@@ -1,11 +1,11 @@
 #pragma once
 
-#include "Component.h" // Inherits from Component
+#include "Component.h"
 
 class Capacitor : public Component {
 public:
     double capacitance;
-    double prevVoltage; // Voltage at the previous time step for transient analysis
+    double prevVoltage;
 
     Capacitor() : capacitance(0.0), prevVoltage(0.0) {}
 

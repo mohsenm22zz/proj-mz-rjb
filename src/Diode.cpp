@@ -8,7 +8,6 @@ double Diode::getCurrent() {
     if (!node1 || !node2) return 0.0;
     double Vd = node1->getVoltage() - node2->getVoltage();
 
-    // Clamp exponent to prevent overflow with large voltages
     double exponent_val = Vd / (n * Vt);
     if (exponent_val > 700) {
         return Is * (exp(700.0) - 1.0);

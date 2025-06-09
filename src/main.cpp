@@ -16,7 +16,7 @@ double stonum(const string &s);
 void clrscrr();
 
 int main() {
-    // This loop allows for multiple simulations without restarting
+    //test_solver();
     while (true) {
         Circuit circuit;
         string line;

@@ -9,7 +9,6 @@ double Inductor::getCurrent() {
 }
 
 double Inductor::getVoltage() {
-    // In MNA, voltage is handled by the system of equations, not directly here.
     return 0.0;
 }
 
