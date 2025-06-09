@@ -3,140 +3,124 @@
 #include "Node.h"
 #include <iostream>
 #include <vector>
-#include <map>
-#include <algorithm>
-
+#include <iomanip>
 using namespace std;
 
-void dcAnalysis(Circuit& circuit) {
-    cout << "// Performing DC Analysis..." << endl;
-    for (const string& gndName : circuit.groundNodeNames) {
-        Node* node = circuit.findNode(gndName);
-        if (node) {
-            node->setGround(true);
-        }
+void result_from_vec(Circuit& circuit, const vector<double>& solvedVoltages, const vector<Node*>& nonGroundNodes) {
+    if (solvedVoltages.size() < nonGroundNodes.size()) {
+        cerr << "Error: Solution vector size mismatch." << endl;
+        return;
     }
-    vector<Node*> nonGroundNodes;
-    map<int, int> nodeNumToMatrixIndex;
-    vector<int> matrixIndexToNodeNum;
-
-    int currentMatrixIdx = 0;
-    for (auto &node : circuit.nodes) {
-        if (!node.isGround) {
-            nonGroundNodes.push_back(&node);
-            nodeNumToMatrixIndex[node.num] = currentMatrixIdx;
-            matrixIndexToNodeNum.push_back(node.num);
-            currentMatrixIdx++;
-        }
-    }
-
-    int nodesToSolve = nonGroundNodes.size();
-    if (nodesToSolve > 0) {
-        vector<vector<double>> A(nodesToSolve, vector<double>(nodesToSolve, 0.0));
-        vector<double> b(nodesToSolve, 0.0);
-
-        // Fill MNA matrices
-        // 1. Resistors
-        for (auto &res : circuit.resistors) {
-            if (!res.node1 || !res.node2 || res.resistance == 0) continue;
-            double g = 1.0 / res.resistance;
-            Node *n1 = res.node1;
-            Node *n2 = res.node2;
-
-            if (!n1->isGround && !n2->isGround) {
-                int mx1 = nodeNumToMatrixIndex[n1->num];
-                int mx2 = nodeNumToMatrixIndex[n2->num];
-                A[mx1][mx1] += g;
-                A[mx2][mx2] += g;
-                A[mx1][mx2] -= g;
-                A[mx2][mx1] -= g;
-            } else if (n1->isGround && !n2->isGround) {
-                int mx2 = nodeNumToMatrixIndex[n2->num];
-                A[mx2][mx2] += g;
-                // b[mx2] -= g * n1->getVoltage(); // n1->getVoltage() is 0
-            } else if (!n1->isGround && n2->isGround) {
-                int mx1 = nodeNumToMatrixIndex[n1->num];
-                A[mx1][mx1] += g;
-                // b[mx1] -= g * n2->getVoltage(); // n2->getVoltage() is 0
-            }
-        }
-
-        // 2. Voltage Sources (Main VIN)
-        // This handles VIN if one of its terminals is ground, or if it directly sets a node voltage.
-        // A more general MNA would handle floating sources with an extra current variable.
-        for (auto &vs : circuit.voltageSources) {
-//            if (!vs.node1 || !vs.node2) continue;
-//            Node *n_to = vs.node1;    // Current flows TO this node
-//            Node *n_from = vs.node2; // Current flows FROM this node
-//
-//            if (!n_to->isGround) {
-//                b[nodeNumToMatrixIndex[n_to->num]] += vs.value;
-//            }
-//            if (!n_from->isGround) {
-//                b[nodeNumToMatrixIndex[n_from->num]] -= vs.value;
-//            }
-        }
-
-        // 3. Current Sources
-        for (auto &cs : circuit.currentSources) {
-            if (!cs.node1 || !cs.node2) continue;
-            Node *n_to = cs.node1;    // Current flows TO this node
-            Node *n_from = cs.node2; // Current flows FROM this node
-
-            if (!n_to->isGround) {
-                b[nodeNumToMatrixIndex[n_to->num]] += cs.value;
-            }
-            if (!n_from->isGround) {
-                b[nodeNumToMatrixIndex[n_from->num]] -= cs.value;
-            }
-        }
-
-        // 4. Capacitors (DC) - Open circuits, no contribution to A or b for DC steady state.
-        // 5. Inductors (DC) - Short circuits. V_node1 = V_node2.
-        for (auto& ind : circuit.inductors) {
-            if (!ind.node1 || !ind.node2) continue;
-            if (ind.node1->isGround && !ind.node2->isGround) { // Inductor shorts node2 to ground
-                Node* n2 = ind.node2;
-                int mx2 = nodeNumToMatrixIndex[n2->num];
-                fill(A[mx2].begin(), A[mx2].end(), 0.0);
-                A[mx2][mx2] = 1.0;
-                b[mx2] = 0.0; // V_n2 = 0
-            } else if (!ind.node1->isGround && ind.node2->isGround) { // Inductor shorts node1 to ground
-                Node* n1 = ind.node1;
-                int mx1 = nodeNumToMatrixIndex[n1->num];
-                fill(A[mx1].begin(), A[mx1].end(), 0.0);
-                A[mx1][mx1] = 1.0;
-                b[mx1] = 0.0; // V_n1 = 0
-            } else if (!ind.node1->isGround && !ind.node2->isGround) {
-                cerr << "Warning: Inductor " << ind.name << " connects two non-ground nodes. Simplified DC MNA may not be accurate for V_L=0." << endl;
-            }
-        }
-
-        // Solve the system Ax = b
-        vector<double> solvedVoltages = gaussianElimination(A, b);
-
-        if (solvedVoltages.size() == (size_t)nodesToSolve) {
-            for (int i = 0; i < nodesToSolve; ++i) {
-                Node *node = circuit.findNodeByNum(matrixIndexToNodeNum[i]);
-                if (node) node->setVoltage(solvedVoltages[i]);
-            }
-        } else {
-            cerr << "Error: Could not solve for node voltages. Matrix may be singular or ill-conditioned." << endl;
-        }
-
-        double i_vin_calc = 0.0;
-        /// vs
-
-    } else if (circuit.nodes.empty() && !circuit.groundNodeNames.empty()) {
-        // Only ground nodes, all voltages are 0.
-    } else if (circuit.nodes.empty()){
-        // No nodes defined.
-    } else {
-        // All nodes are ground nodes.
-        cout << "All nodes are ground. All voltages are 0." << endl;
+    for (size_t i = 0; i < nonGroundNodes.size(); ++i) {
+        nonGroundNodes[i]->setVoltage(solvedVoltages[i]);
     }
 }
 
-void transientAnalysis(Circuit& circuit) {
+void dcAnalysis(Circuit& circuit) {
+    cout << "// Performing DC Analysis..." << endl;
+    circuit.setDeltaT(1e12);
+    vector<Node*> nonGroundNodes;
+    for (auto& node : circuit.nodes) {
+        if (!node.isGround) {
+            nonGroundNodes.push_back(&node);
+        }
+    }
+    int nodesToSolve = nonGroundNodes.size();
+    if (nodesToSolve > 0) {
+        circuit.set_MNA_A();
+        circuit.set_MNA_RHS();
+        for(size_t i = 0; i < circuit.inductors.size(); ++i) {
+            int m_idx = circuit.countNonGroundNodes() + circuit.voltageSources.size() + i;
+            circuit.MNA_A[m_idx][m_idx] = 0; // In DC, inductor has no impedance itself
+        }
+        vector<double> solved_solution = gaussianElimination(circuit.MNA_A, circuit.MNA_RHS);
+        result_from_vec(circuit, solved_solution, nonGroundNodes);
+    }
+    cout << "// DC Analysis complete." << endl;
+}
 
+void transientAnalysis(Circuit& circuit, double t_step, double t_stop) {
+    cout << "// Performing Transient Analysis..." << endl;
+
+    dcAnalysis(circuit);
+    circuit.updateComponentStates();
+    circuit.setDeltaT(t_step/10);
+
+
+
+    vector<string> headers;
+    headers.push_back("time");
+    for (const auto& node : circuit.nodes) {
+        if (!node.isGround) {
+            headers.push_back("V(" + node.name + ")");
+        }
+    }
+    for (const auto& comp : circuit.resistors) { headers.push_back("I(" + comp.name + ")"); }
+    for (const auto& comp : circuit.capacitors) { headers.push_back("I(" + comp.name + ")"); }
+    for (const auto& comp : circuit.inductors) { headers.push_back("I(" + comp.name + ")"); }
+    for (const auto& comp : circuit.voltageSources) { headers.push_back("I(" + comp.name + ")"); }
+
+
+    vector<vector<double>> results;
+
+    vector<Node*> nonGroundNodes;
+    for (auto& node : circuit.nodes) {
+        if (!node.isGround) {
+            nonGroundNodes.push_back(&node);
+        }
+    }
+    int num_nodes = nonGroundNodes.size();
+    int num_vs = circuit.voltageSources.size();
+
+
+
+    for (double t = 0; t <= t_stop; t += t_step) {
+        vector<double> current_step_results;
+        current_step_results.push_back(t);
+        for (const auto& node_ptr : nonGroundNodes) {
+            current_step_results.push_back(node_ptr->getVoltage());
+        }
+        for (auto& comp : circuit.resistors) { current_step_results.push_back(comp.getCurrent()); }
+        for (auto& comp : circuit.capacitors) { current_step_results.push_back(comp.getCurrent()); }
+        for (auto& comp : circuit.inductors) { current_step_results.push_back(comp.getCurrent()); }
+        for (auto& comp : circuit.voltageSources) { current_step_results.push_back(comp.getCurrent()); }
+        results.push_back(current_step_results);
+
+        circuit.set_MNA_A();
+        circuit.set_MNA_RHS();
+
+        if (circuit.MNA_A.empty()) {
+            cout << "Empty Circuit" << endl;
+            break;
+        }
+
+        vector<double> solved_solution = gaussianElimination(circuit.MNA_A, circuit.MNA_RHS);
+        result_from_vec(circuit, solved_solution, nonGroundNodes);
+        for(size_t i = 0; i < circuit.voltageSources.size(); ++i) {
+            circuit.voltageSources[i].setCurrent(solved_solution[num_nodes + i]);
+        }
+        for(size_t i = 0; i < circuit.inductors.size(); ++i) {
+            circuit.inductors[i].setInductorCurrent(solved_solution[num_nodes + num_vs + i]);
+        }
+        for(auto& cap : circuit.capacitors) {
+            double v_new = (cap.node1->getVoltage() - cap.node2->getVoltage());
+            double i_c = (cap.capacitance / t_step) * (v_new - cap.prevVoltage);
+            cap.setCurrent(i_c);
+        }
+        circuit.updateComponentStates();
+    }
+
+
+    cout << "\n// Transient Analysis Results:" << endl;
+    for (const auto& header : headers) {
+        cout << setw(12) << left << header;
+    }
+    cout << endl;
+    cout << fixed << setprecision(4);
+    for (const auto& row : results) {
+        for (const auto& val : row) {
+            cout << setw(12) << left << val;
+        }
+        cout << endl;
+    }
 }

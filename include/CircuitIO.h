@@ -6,9 +6,10 @@
 
 using namespace std;
 
-bool command_handling(Circuit& circuit, const vector<string>& cmds, vector<vector<string>>& readCommands,bool &dc);
+bool command_handling(Circuit &circuit, const vector<string> &cmds, vector<vector<string>> &analysisCommands);
 
-void handleErrors(const Circuit& circuit);
+void handleErrors(const Circuit &circuit);
 
-Circuit readCircuitFromFile(const string& filename);
-void saveResultsToFile(const Circuit& circuit, const string& filename);
+Circuit readCircuitFromFile(const string &filename);
+
+void saveResultsToFile(const Circuit &circuit, const string &filename);

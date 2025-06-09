@@ -3,88 +3,76 @@
 #include <vector>
 #include <sstream>
 #include <string>
-
+#include <algorithm>
+#include <cstdlib>
 #include "Circuit.h"
 #include "Analysis.h"
 #include "CircuitIO.h"
 #include "LinearSolver.h"
+
 using namespace std;
 
+double stonum(const string &s);
+void clrscrr();
 int main() {
     //test_solver();
     Circuit circuit;
     string line;
-    vector<vector<string>> commands;
-    cout << fixed << setprecision(3);
-    bool dc = true; //default
-    while (getline(cin, line)) {
-        istringstream iss(line);
-        vector<string> cmds;
-        string cmd;
-        while (iss >> cmd) {
-            cmds.push_back(cmd);
+    vector<vector<string>> analysisCommands;
+
+    cout << "---=== [mz-rjb Circuit Simulator] ===---" << endl;
+    cout << "Enter circuit (.run for simulation):" << endl;
+    while (true) {
+        while (getline(cin, line)) {
+            if (line == "exit") {
+                break;
+            }
+            istringstream iss(line);
+            vector<string> cmds;
+            string cmd_part;
+            while (iss >> cmd_part) {
+                cmds.push_back(cmd_part);
+            }
+            if (!cmds.empty()) {
+                if(!command_handling(circuit, cmds, analysisCommands))
+                    break;
+            }
         }
-        if (!command_handling(circuit, cmds, commands,dc)) {
+        if (line == "exit") {
             break;
         }
-    }
-    handleErrors(circuit);
-    if (dc)
-    dcAnalysis(circuit);
-    else transientAnalysis(circuit);
-    for (const auto &cmds : commands) {
-        if (cmds.size() < 3) { cerr << "Error: 'read' command is incomplete." << endl; continue; }
 
-        if (cmds[1] == "node" && cmds[2] == "voltage") {
-            if (cmds.size() < 4) { cerr << "Error: 'read node voltage' needs node name." << endl; continue; }
-            Node *n = circuit.findNode(cmds[3]);
-            if (n) {
-                cout << n->name << " voltage = " << n->getVoltage() << " V" << endl;
-            } else {
-                cerr << "Error: Node " << cmds[3] << " not found for reading voltage." << endl;
+        cout << "---=== [mz-rjb Circuit Simulator] ===---" << endl;
+        handleErrors(circuit);
+        for (const auto &cmd_parts: analysisCommands) {
+            if (cmd_parts.empty()) continue;
+            string analysisType = cmd_parts[0];
+            transform(analysisType.begin(), analysisType.end(), analysisType.begin(), ::tolower);
+            if (analysisType == ".dc") {
+                dcAnalysis(circuit);
+                for (auto &node: circuit.nodes) {
+                    cout << "Node " << node.name << " voltage = " << node.getVoltage() << " V" << endl;
+                }
+            } else if (analysisType == ".tran") {
+                if (cmd_parts.size() < 3) {
+                    cerr << "Error: Format: .tran <Tstep> <Tstop>" << endl;
+                    continue;
+                }
+                try {
+                    double t_step = stonum(cmd_parts[1]);
+                    double t_stop = stonum(cmd_parts[2]);
+                    transientAnalysis(circuit, t_step, t_stop);
+                } catch (const exception &e) {
+                    cerr << "Error parsing transient analysis parameters: " << e.what() << endl;
+                }
             }
-        } else if (cmds[1] == "current") {
-            if (cmds.size() < 3) { cerr << "Error: 'read current' needs component name." << endl; continue; }
-            string compName = cmds[2];
-            if (compName == "VIN") {
-
-            } else if (Resistor* r = circuit.findResistor(compName)) {
-                cout << r->name << " current = " << fabs(r->getCurrent()) << " A" << endl;
-            } else if (Capacitor* c = circuit.findCapacitor(compName)) {
-                cout << c->name << " current (DC) = " << fabs(c->getCurrent()) << " A" << endl; // Should be 0 for DC
-            } else if (Inductor* i = circuit.findInductor(compName)) {
-                cout << i->name << " current (DC) = " << fabs(i->getCurrent()) << " A" << endl;
-            } else if (Diode* d = circuit.findDiode(compName)) {
-                cout << d->name << " current = " << d->getCurrent() << " A" << endl;
-            } else if (CurrentSource* cs = circuit.findCurrentSource(compName)) {
-                cout << cs->name << " current = " << cs->getCurrent() << " A" << endl;
+        }
+        if (analysisCommands.empty()) {
+            dcAnalysis(circuit);
+            for (auto &node: circuit.nodes) {
+                cout << "Node " << node.name << " voltage = " << node.getVoltage() << " V" << endl;
             }
-            else {
-                cerr << "Error: Component " << compName << " not found for reading current." << endl;
-            }
-        } else if (cmds[1] == "voltage") { // read voltage <component_name_or_VIN>
-            if (cmds.size() < 3) { cerr << "Error: 'read voltage' needs component name." << endl; continue; }
-            string compName = cmds[2];
-            if (compName == "VIN") {
-
-            } else if (Resistor* r = circuit.findResistor(compName)) {
-                cout << r->name << " voltage = " << r->getVoltage() << " V" << endl;
-            } else if (Capacitor* c = circuit.findCapacitor(compName)) {
-                cout << c->name << " voltage (DC) = " << c->getVoltage() << " V" << endl;
-            } else if (Inductor* i = circuit.findInductor(compName)) {
-                cout << i->name << " voltage (DC) = " << i->getVoltage() << " V" << endl; // Should be 0 for DC
-            } else if (Diode* d = circuit.findDiode(compName)) {
-                cout << d->name << " voltage = " << d->getVoltage() << " V" << endl;
-            } else if (CurrentSource* cs = circuit.findCurrentSource(compName)) {
-                cout << cs->name << " voltage = " << cs->getVoltage() << " V" << endl;
-            }
-            else {
-                cerr << "Error: Component " << compName << " not found for reading voltage." << endl;
-            }
-        } else {
-            cerr << "Warning: Unknown 'read' command: " << cmds[1] << endl;
         }
     }
-
     return 0;
 }

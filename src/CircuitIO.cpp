@@ -1,172 +1,194 @@
-#include "CircuitIO.h" // Include its own header
-#include "Node.h"      // Needs Node for checking node existence and setting ground
-#include <iostream>    // For cout, cerr
-#include <sstream>     // For istringstream
-#include <fstream>     // For ifstream, ofstream
-#include <stdexcept>   // For stod exceptions
-#include <algorithm>   // For any_of (if you use it for string checks)
-
+#include "CircuitIO.h"
+#include "Node.h"
+#include <iostream>
+#include <sstream>
+#include <fstream>
+#include <stdexcept>
+#include <algorithm>
+#include <cstdlib>
 using namespace std;
 
-bool command_handling(Circuit& circuit, const vector<string>& cmds, vector<vector<string>>& readCommands, bool &dc) {
+double stonum(const string& s) {
+    if (s.empty()) {
+        throw invalid_argument("Empty value string");
+    }
+    string nums = s;
+    char prefix = 0;
+    if (!nums.empty() && isalpha(nums.back())) {
+        prefix = tolower(nums.back());
+        nums.pop_back();
+        if (prefix == 'g' && !nums.empty() && tolower(nums.back()) == 'e') {
+            if (nums.length() > 1 && tolower(nums[nums.length()-2]) == 'm'){
+                nums.resize(nums.length() - 2);
+                prefix = 'M';
+            }
+        }
+    }
+    double val;
+    try {
+        val = stod(nums);
+    } catch (const exception& e) {
+        throw invalid_argument("Invalid number format in \"" + s + "\"");
+    }
+    switch (prefix) {
+        case 'p': return val * 1e-12;
+        case 'n': return val * 1e-9;
+        case 'u': return val * 1e-6;
+        case 'm': return val * 1e-3;
+        case 'k': return val * 1e3;
+        case 'M': return val * 1e6;
+        default: return val;
+    }
+}
+
+void clrscrr(){
+#ifdef _WIN32
+    system("cls");
+#else
+    system("clear");
+#endif
+}
+bool command_handling(Circuit& circuit, const vector<string>& cmds, vector<vector<string>>& analysisCommands) {
     if (cmds.empty()) return true;
-    if (cmds[0] == "end") {
-        return false; // Signal to end circuit description input
-    } else if (cmds[0] == "add") {
-        if (cmds.size() < 2) { cerr << "Error: 'add' command needs more arguments." << endl; return true;}
-        if (cmds[1] == "node") {
-            if (cmds.size() < 3) { cerr << "Error: 'add node' needs a name." << endl; return true;}
-            circuit.addNode(cmds[2]);
-        } else if (cmds[1] == "resistor") { // add resistor <value> <name> <node1> <node2>
-            if (cmds.size() < 6) { cerr << "Error: 'add resistor' needs value, name, node1, node2." << endl; return true;}
-            Resistor newResistor;
-            try { newResistor.resistance = stod(cmds[2]); } catch (const exception& e) { cerr << "Error: Invalid resistance value for " << cmds[3] << endl; return true; }
-            newResistor.name = cmds[3];
-            newResistor.node1 = circuit.findNode(cmds[4]);
-            newResistor.node2 = circuit.findNode(cmds[5]);
-            if (!newResistor.node1 || !newResistor.node2) { cerr << "Error: Node(s) not found for resistor " << newResistor.name << endl; return true; }
-            circuit.resistors.push_back(newResistor);
-        } else if (cmds[1] == "capacitor") { // add capacitor <value> <name> <node1> <node2>
-            if (cmds.size() < 6) { cerr << "Error: 'add capacitor' needs value, name, node1, node2." << endl; return true;}
-            Capacitor newCap;
-            try { newCap.capacitance = stod(cmds[2]); } catch (const exception& e) { cerr << "Error: Invalid capacitance value for " << cmds[3] << endl; return true; }
-            newCap.name = cmds[3];
-            newCap.node1 = circuit.findNode(cmds[4]);
-            newCap.node2 = circuit.findNode(cmds[5]);
-            if (!newCap.node1 || !newCap.node2) { cerr << "Error: Node(s) not found for capacitor " << newCap.name << endl; return true; }
-            circuit.capacitors.push_back(newCap);
-        } else if (cmds[1] == "inductor") { // add inductor <value> <name> <node1> <node2>
-            if (cmds.size() < 6) { cerr << "Error: 'add inductor' needs value, name, node1, node2." << endl; return true;}
-            Inductor newInd;
-            try { newInd.inductance = stod(cmds[2]); } catch (const exception& e) { cerr << "Error: Invalid inductance value for " << cmds[3] << endl; return true; }
-            newInd.name = cmds[3];
-            newInd.node1 = circuit.findNode(cmds[4]);
-            newInd.node2 = circuit.findNode(cmds[5]);
-            if (!newInd.node1 || !newInd.node2) { cerr << "Error: Node(s) not found for inductor " << newInd.name << endl; return true; }
-            circuit.inductors.push_back(newInd);
-        } else if (cmds[1] == "diode") { // add diode <name> <node1> <node2> [Is=<val>] [Vt=<val>] [n=<val>]
-            if (cmds.size() < 5) { cerr << "Error: 'add diode' needs name, node1, node2." << endl; return true;}
-            Diode newDiode;
-            newDiode.name = cmds[2];
-            newDiode.node1 = circuit.findNode(cmds[3]);
-            newDiode.node2 = circuit.findNode(cmds[4]);
-            if (!newDiode.node1 || !newDiode.node2) { cerr << "Error: Node(s) not found for diode " << newDiode.name << endl; return true; }
-            // Optional parameters for diode
-            for (size_t i = 5; i < cmds.size(); ++i) {
-                string param = cmds[i];
-                size_t eqPos = param.find('=');
-                if (eqPos != string::npos) {
-                    string key = param.substr(0, eqPos);
-                    string valStr = param.substr(eqPos + 1);
-                    try {
-                        double val = stod(valStr);
-                        if (key == "Is") newDiode.Is = val;
-                        else if (key == "Vt") newDiode.Vt = val;
-                        else if (key == "n") newDiode.n = val;
-                    } catch (const exception& e) {
-                        cerr << "Warning: Invalid value for diode parameter " << key << endl;
-                    }
-                }
-            }
-            circuit.diodes.push_back(newDiode);
-        } else if (cmds[1] == "voltage" && cmds.size() > 2 && cmds[2] == "source") { // add voltage source <value> <node1_name> <node2_name> (VIN is main, this could be for others if generalized)
-            if (cmds.size() < 6) { cerr << "Error: 'add voltage source' needs value, name (VIN implicit), node1, node2." << endl; return true;}
-            // Assuming this command configures the main VIN source
-        } else if (cmds[1] == "current" && cmds.size() > 2 && cmds[2] == "source") { // add current source <value> <name> <node_from> <node_to>
-            if (cmds.size() < 7) { cerr << "Error: 'add current source' needs value, name, node_from, node_to." << endl; return true;}
+    string command = cmds[0];
+    transform(command.begin(), command.end(), command.begin(), ::tolower);
+    if (command == "exit" or command == ".run") {
+        return false;
+    } else if (command == "add") {
+        if (cmds.size() < 3) { cerr << "Error: 'add' command is incomplete. Expected: add <type> ..." << endl; return true;}
+        string type1 = cmds[1];
+        transform(type1.begin(), type1.end(), type1.begin(), ::tolower);
+        if (type1 == "voltage" && cmds.size() > 2 && tolower(cmds[2][0]) == 's') { // "voltage source"
+            if (cmds.size() != 7) { cerr << "Error: Incorrect arguments for 'add voltage source'. Expected: add voltage source <name> <node+> <node-> <value>" << endl; return true;}
+            if (circuit.findVoltageSource(cmds[3])) { cerr << "Error: Voltage source '" << cmds[3] << "' already exists." << endl; return true; }
+            VoltageSource newVS;
+            try { newVS.value = stonum(cmds[6]); } catch (const exception& e) { cerr << "Error: Invalid voltage value for " << cmds[3] << ": " << e.what() << endl; return true; }
+            newVS.name = cmds[3];
+            newVS.node1 = circuit.findOrCreateNode(cmds[4]);
+            newVS.node2 = circuit.findOrCreateNode(cmds[5]);
+            circuit.voltageSources.push_back(newVS);
+            return true;
+        } else if (type1 == "current" && cmds.size() > 2 && tolower(cmds[2][0]) == 's') { // "current source"
+            if (cmds.size() != 7) { cerr << "Error: Incorrect arguments for 'add current source'. Expected: add current source <name> <node_from> <node_to> <value>" << endl; return true;}
+            if (circuit.findCurrentSource(cmds[3])) { cerr << "Error: Current source '" << cmds[3] << "' already exists." << endl; return true; }
             CurrentSource newCS;
-            try { newCS.value = stod(cmds[3]); } catch (const exception& e) { cerr << "Error: Invalid current value for " << cmds[4] << endl; return true; }
-            newCS.name = cmds[4];
-            newCS.node2 = circuit.findNode(cmds[5]); // Current flows FROM node2
-            newCS.node1 = circuit.findNode(cmds[6]); // Current flows TO node1
-            if (!newCS.node1 || !newCS.node2) { cerr << "Error: Node(s) not found for current source " << newCS.name << endl; return true; }
+            try { newCS.value = stonum(cmds[6]); } catch (const exception& e) { cerr << "Error: Invalid current value for " << cmds[3] << ": " << e.what() << endl; return true; }
+            newCS.name = cmds[3];
+            newCS.node2 = circuit.findOrCreateNode(cmds[4]); // Current flows FROM
+            newCS.node1 = circuit.findOrCreateNode(cmds[5]); // Current flows TO
             circuit.currentSources.push_back(newCS);
+            return true;
         }
-        else if (cmds[1] == "ground") { // add ground <node_name>
-            if (cmds.size() < 3) { cerr << "Error: 'add ground' needs a node name." << endl; return true;}
-            circuit.groundNodeNames.push_back(cmds[2]);
-            Node* gndNode = circuit.findNode(cmds[2]);
-            if (gndNode) {
-                gndNode->setGround(true);
-            } else {
-                cerr << "Error: Node " << cmds[2] << " not found for ground connection." << endl;
+        if (type1 == "resistor") {
+            if (cmds.size() != 6) { cerr << "Error: Incorrect arguments for 'add resistor'. Expected: add resistor <name> <node1> <node2> <value>" << endl; return true;}
+            if (circuit.findResistor(cmds[2])) { cerr << "Error: Resistor '" << cmds[2] << "' already exists." << endl; return true; }
+            Resistor r;
+            try { r.resistance = stonum(cmds[5]); } catch (const exception& e) { cerr << "Error: Invalid resistance for " << cmds[2] << ": " << e.what() << endl; return true; }
+            if (r.resistance <= 0) { cerr << "Error: Resistance for " << cmds[2] << " must be positive." << endl; return true; }
+            r.name = cmds[2];
+            r.node1 = circuit.findOrCreateNode(cmds[3]);
+            r.node2 = circuit.findOrCreateNode(cmds[4]);
+            circuit.resistors.push_back(r);
+        } else if (type1 == "capacitor") {
+            if (cmds.size() != 6) { cerr << "Error: Incorrect arguments for 'add capacitor'. Expected: add capacitor <name> <node1> <node2> <value>" << endl; return true;}
+            if (circuit.findCapacitor(cmds[2])) { cerr << "Error: Capacitor '" << cmds[2] << "' already exists." << endl; return true; }
+            Capacitor c;
+            try { c.capacitance = stonum(cmds[5]); } catch (const exception& e) { cerr << "Error: Invalid capacitance for " << cmds[2] << ": " << e.what() << endl; return true; }
+            if (c.capacitance <= 0) { cerr << "Error: Capacitance for " << cmds[2] << " must be positive." << endl; return true; }
+            c.name = cmds[2];
+            c.node1 = circuit.findOrCreateNode(cmds[3]);
+            c.node2 = circuit.findOrCreateNode(cmds[4]);
+            circuit.capacitors.push_back(c);
+        } else if (type1 == "inductor") {
+            if (cmds.size() != 6) { cerr << "Error: Incorrect arguments for 'add inductor'. Expected: add inductor <name> <node1> <node2> <value>" << endl; return true;}
+            if (circuit.findInductor(cmds[2])) { cerr << "Error: Inductor '" << cmds[2] << "' already exists." << endl; return true; }
+            Inductor l;
+            try { l.inductance = stonum(cmds[5]); } catch (const exception& e) { cerr << "Error: Invalid inductance for " << cmds[2] << ": " << e.what() << endl; return true; }
+            if (l.inductance <= 0) { cerr << "Error: Inductance for " << cmds[2] << " must be positive." << endl; return true; }
+            l.name = cmds[2];
+            l.node1 = circuit.findOrCreateNode(cmds[3]);
+            l.node2 = circuit.findOrCreateNode(cmds[4]);
+            circuit.inductors.push_back(l);
+        } else if (type1 == "diode") {
+            if (cmds.size() != 5) { cerr << "Error: Incorrect arguments for 'add diode'. Expected: add diode <name> <node1> <node2>" << endl; return true;}
+            if (circuit.findDiode(cmds[2])) { cerr << "Error: Diode '" << cmds[2] << "' already exists." << endl; return true; }
+            Diode d;
+            d.name = cmds[2];
+            d.node1 = circuit.findOrCreateNode(cmds[3]);
+            d.node2 = circuit.findOrCreateNode(cmds[4]);
+            circuit.diodes.push_back(d);
+        } else if (type1 == "ground") {
+            if (cmds.size() != 3) { cerr << "Error: 'add ground' needs a node name." << endl; return true;}
+            Node* gndNode = circuit.findOrCreateNode(cmds[2]);
+            gndNode->setGround(true);
+            if (find(circuit.groundNodeNames.begin(), circuit.groundNodeNames.end(), cmds[2]) == circuit.groundNodeNames.end()) {
+                circuit.groundNodeNames.push_back(cmds[2]);
             }
-        } else {
-            cerr << "Warning: Unknown 'add' command type: " << cmds[1] << endl;
         }
-    } else if (cmds[0] == "read") { // read node voltage <name> | read current <comp_name> | read voltage <comp_name>
-        readCommands.push_back(cmds);
+        else {
+            cerr << "Error: Unknown component type for 'add': " << cmds[1] << endl;
+        }
+
+    } else if (command == "delete") {
+        if (cmds.size() != 2) { cerr << "Error: 'delete' requires exactly one argument: <ComponentName>" << endl; return true; }
+        string compName = cmds[1];
+        char compTypePrefix = toupper(compName[0]);
+        bool deleted = false;
+        switch (compTypePrefix) {
+            case 'R': deleted = circuit.deleteResistor(compName); break;
+            case 'C': deleted = circuit.deleteCapacitor(compName); break;
+            case 'L': deleted = circuit.deleteInductor(compName); break;
+            case 'D': deleted = circuit.deleteDiode(compName); break;
+            case 'V': deleted = circuit.deleteVoltageSource(compName); break;
+            case 'I': deleted = circuit.deleteCurrentSource(compName); break;
+            default:
+                cerr << "Error: Unknown component prefix for deletion: " << compTypePrefix << endl;
+                return true;
+        }
+        if (deleted) {
+            cout << "Component '" << compName << "' deleted successfully." << endl;
+        } else {
+            cerr << "Error: Cannot delete component '" << compName << "'; component not found." << endl;
+        }
+    } else if (command == ".dc" || command == ".tran") {
+        analysisCommands.push_back(cmds);
     } else {
         cerr << "Warning: Unknown command: " << cmds[0] << endl;
     }
-    return true; // Continue processing commands
+    return true;
 }
-
 void handleErrors(const Circuit& circuit) {
-    cout << "// handleErrors function called" << endl;
     if (circuit.groundNodeNames.empty() && !circuit.nodes.empty()) {
         cerr << "Error: No ground node detected in the circuit. Analysis may be unstable or incorrect." << endl;
     }
-    for (const auto& res : circuit.resistors) {
-        if (res.resistance <= 0) {
-            cerr << "Error: Non-positive resistance value for resistor " << res.name << " (" << res.resistance << " Ohms)." << endl;
-        }
-        if (!res.node1 || !res.node2) {
-            cerr << "Error: Resistor " << res.name << " has one or more null nodes." << endl;
-        }
-    }
-    for (const auto& cap : circuit.capacitors) {
-        if (cap.capacitance <= 0) {
-            cerr << "Error: Non-positive capacitance value for capacitor " << cap.name << " (" << cap.capacitance << " F)." << endl;
-        }
-        if (!cap.node1 || !cap.node2) {
-            cerr << "Error: Capacitor " << cap.name << " has one or more null nodes." << endl;
-        }
-    }
-    for (const auto& ind : circuit.inductors) {
-        if (ind.inductance <= 0) {
-            cerr << "Error: Non-positive inductance value for inductor " << ind.name << " (" << ind.inductance << " H)." << endl;
-        }
-        if (!ind.node1 || !ind.node2) {
-            cerr << "Error: Inductor " << ind.name << " has one or more null nodes." << endl;
-        }
-    }
-    for(const auto& cs : circuit.currentSources) {
-        if (cs.node1 && cs.node2 && cs.node1 == cs.node2) {
-            cerr << "Error: Current source " << cs.name << " has both terminals connected to the same node." << endl;
-        }
-    }
-    // Check for floating nodes (nodes not connected to anything or only to other floating nodes) - more complex check.
+    cout << "// Circuit integrity check complete." << endl;
 }
 
 Circuit readCircuitFromFile(const string& filename) {
-    cout << "// readCircuitFromFile function called with filename: " << filename << " (Not Implemented)" << endl;
     Circuit circuit;
-    // Implementation would involve:
-    // 1. Opening and reading the file line by line.
-    // 2. Parsing commands similar to how cin is parsed in main (perhaps calling command_handling).
-    // ifstream inputFile(filename);
-    // if (!inputFile.is_open()) {
-    //    cerr << "Error: Could not open circuit file " << filename << endl;
-    //    return circuit; // Return empty circuit
-    // }
-    // string line;
-    // while (getline(inputFile, line)) { /* ... parse line ... */ }
-    // inputFile.close();
+    ifstream inputFile(filename);
+    if (!inputFile.is_open()) {
+        cerr << "Error: Could not open circuit file " << filename << endl;
+        return circuit;
+    }
+    string line;
+    vector<vector<string>> analysisCmds;
+    while (getline(inputFile, line)) {
+        istringstream iss(line);
+        vector<string> cmds;
+        string cmd;
+        while(iss >> cmd){
+            cmds.push_back(cmd);
+        }
+        if(!cmds.empty()){
+            command_handling(circuit, cmds, analysisCmds);
+        }
+    }
+    inputFile.close();
+    handleErrors(circuit);
     return circuit;
 }
 
 void saveResultsToFile(const Circuit& circuit, const string& filename) {
     cout << "// saveResultsToFile function called with filename: " << filename << " (Not Implemented)" << endl;
-    // Implementation would involve:
-    // 1. Opening the file for writing.
-    // 2. Iterating through solved node voltages and component currents/voltages.
-    // 3. Writing them to the file in a structured format.
-    // ofstream outputFile(filename);
-    // if (!outputFile.is_open()) {
-    //    cerr << "Error: Could not open file " << filename << " for saving results." << endl;
-    //    return;
-    // }
-    // /* ... write data ... */
-    // outputFile.close();
 }

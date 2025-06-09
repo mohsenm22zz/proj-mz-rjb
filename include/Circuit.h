@@ -5,7 +5,6 @@
 #include <map>
 
 class Node;
-
 class Component;
 
 #include "Node.h"
@@ -30,61 +29,46 @@ public:
     vector<CurrentSource> currentSources;
     vector<string> groundNodeNames;
 
-    double delta_t;
-    double Tstep = 1e-4;
-    double Tstop;
-    double Tstart = 0;
-    double maxstep;
-
+    double delta_t;///Av=x
     vector<vector<double>> MNA_A;
-    vector<double> MNA_v;
-    vector<double> MNA_x;
-
+    vector<double> MNA_RHS;
+    vector<double> MNA_solution;
     Circuit();
 
-    Node *findNode(const string &find_from_name);
+    void addNode(const string& name);
+    Node* findNode(const string& name);
+    Node* findOrCreateNode(const string& name);
+    Node* findNodeByNum(int num_to_find);
 
-    Node *findNodeByNum(int num_to_find);
+    Resistor* findResistor(const string& name);
+    Capacitor* findCapacitor(const string& name);
+    Inductor* findInductor(const string& name);
+    Diode* findDiode(const string& name);
+    CurrentSource* findCurrentSource(const string& name);
+    VoltageSource* findVoltageSource(const string& name);
 
-    Resistor *findResistor(const string &find_from_name);
-
-    Capacitor *findCapacitor(const string &find_from_name);
-
-    Inductor *findInductor(const string &find_from_name);
-
-    Diode *findDiode(const string &find_from_name);
-
-    CurrentSource *findCurrentSource(const string &find_from_name);
-
-    VoltageSource *findVoltageSource(const string &find_from_name);
+    bool deleteResistor(const string& name);
+    bool deleteCapacitor(const string& name);
+    bool deleteInductor(const string& name);
+    bool deleteDiode(const string& name);
+    bool deleteVoltageSource(const string& name);
+    bool deleteCurrentSource(const string& name);
 
     vector<vector<double>> G();
-
     vector<vector<double>> B();
-
     vector<vector<double>> C();
-
     vector<vector<double>> D();
-
     vector<double> J();
-
     vector<double> E();
 
     void set_MNA_A();
+    void set_MNA_RHS();
+    void MNA_sol_size();
 
-    void set_MNA_v();
-
-    void set_MNA_x();
-
-    void addNode(const string &name);
-
-    void setDeltaT();
-
-    bool isNodeNameGround(const string &node_name) const;
-
-    int getNodeMatrixIndex(const Node *target_node_ptr) const;
-
-    int countNonGroundNodes() const;
-
+    void setDeltaT(double dt);
     void updateComponentStates();
+
+    bool isNodeNameGround(const string& node_name) const;
+    int getNodeMatrixIndex(const Node* target_node_ptr) const;
+    int countNonGroundNodes() const;
 };
