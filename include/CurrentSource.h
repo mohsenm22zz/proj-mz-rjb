@@ -1,10 +1,10 @@
 #pragma once
 
-#include "Component.h" // Inherits from Component
+#include "Component.h"
 
 class CurrentSource : public Component {
 public:
-    double value; // Current value of the source
+    double value;
 
     CurrentSource() : value(0.0) {}
 

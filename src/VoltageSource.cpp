@@ -13,3 +13,11 @@ void VoltageSource::setCurrent(double c) {
 double VoltageSource::getVoltage() {
     return value;
 }
+
+void VoltageSource::addCurrentHistoryPoint(double time, double cur) {
+    current_history.push_back({time, cur});
+}
+
+void VoltageSource::clearHistory() {
+    current_history.clear();
+}

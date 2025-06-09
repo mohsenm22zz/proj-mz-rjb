@@ -2,6 +2,7 @@
 
 #include "Component.h"
 #include <cmath>
+
 class Diode : public Component {
 public:
     double Is;

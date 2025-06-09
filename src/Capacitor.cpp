@@ -5,7 +5,7 @@
 using namespace std;
 
 double Capacitor::getCurrent() {
-    return 0.0;
+    return 0.0; // This is a placeholder; transient analysis calculates it.
 }
 
 double Capacitor::getVoltage() {

@@ -2,7 +2,9 @@
 
 #include <vector>
 #include <string>
+#include <list>
 #include <map>
+#include <memory>
 
 class Node;
 class Component;
@@ -20,7 +22,7 @@ using namespace std;
 
 class Circuit {
 public:
-    vector<Node> nodes;
+    vector<Node*> nodes;
     vector<Resistor> resistors;
     vector<Capacitor> capacitors;
     vector<Inductor> inductors;
@@ -29,11 +31,13 @@ public:
     vector<CurrentSource> currentSources;
     vector<string> groundNodeNames;
 
-    double delta_t;///Av=x
+    double delta_t;
     vector<vector<double>> MNA_A;
     vector<double> MNA_RHS;
     vector<double> MNA_solution;
+
     Circuit();
+    ~Circuit();
 
     void addNode(const string& name);
     Node* findNode(const string& name);
@@ -67,6 +71,8 @@ public:
 
     void setDeltaT(double dt);
     void updateComponentStates();
+
+    void clearComponentHistory();
 
     bool isNodeNameGround(const string& node_name) const;
     int getNodeMatrixIndex(const Node* target_node_ptr) const;

@@ -24,3 +24,11 @@ void Node::setGround(bool ground_status) {
         voltage = 0.0;
     }
 }
+
+void Node::addVoltageHistoryPoint(double time, double vol) {
+    voltage_history.push_back({time, vol});
+}
+
+void Node::clearHistory() {
+    voltage_history.clear();
+}

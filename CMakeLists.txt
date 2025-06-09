@@ -3,35 +3,25 @@ project(proj1)
 
 set(CMAKE_CXX_STANDARD 20)
 
+# The add_executable command should only list the .cpp source files that
+# need to be compiled into the final program.
 add_executable(proj1
         src/main.cpp
         src/Node.cpp
-        include/Component.h
         src/Component.cpp
-        include/Resistor.h
         src/Resistor.cpp
-        include/Capacitor.h
         src/Capacitor.cpp
-        include/Inductor.h
         src/Inductor.cpp
-        include/Diode.h
         src/Diode.cpp
-        include/VoltageSource.h
         src/VoltageSource.cpp
-        include/CurrentSource.h
         src/CurrentSource.cpp
-        include/Circuit.h
         src/Circuit.cpp
-        include/LinearSolver.h
         src/LinearSolver.cpp
-        include/Analysis.h
         src/Analysis.cpp
-        include/CircuitIO.h
         src/CircuitIO.cpp
-        # ... other .cpp files will go here later
 )
 
-# 2. THEN specify properties for that target
+# This part correctly tells the compiler where to find the header files (#include <...>)
 target_include_directories(proj1 PUBLIC
         ${CMAKE_SOURCE_DIR}/include
 )
