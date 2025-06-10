@@ -1,23 +1,44 @@
 #include "Diode.h"
-#include "Node.h"
-#include <cmath>
 
-using namespace std;
-
-double Diode::getCurrent() {
-    if (!node1 || !node2) return 0.0;
-    double Vd = node1->getVoltage() - node2->getVoltage();
-
-    double exponent_val = Vd / (n * Vt);
-    if (exponent_val > 700) {
-        return Is * (exp(700.0) - 1.0);
-    } else if (exponent_val < -700) {
-        return -Is;
-    }
-    return Is * (exp(exponent_val) - 1.0);
+Diode::Diode(const std::string& name, Node* n1, Node* n2, DiodeType type, double vf, double vz)
+        : Component(name, n1, n2),
+          diodeType(type),
+          currentState(STATE_OFF),
+          forwardVoltage(vf),
+          zenerVoltage(vz),
+          branchIndex(-1)
+{
 }
 
-double Diode::getVoltage() {
-    if (!node1 || !node2) return 0.0;
-    return fabs(node1->getVoltage() - node2->getVoltage());
+DiodeType Diode::getDiodeType() const {
+    return diodeType;
+}
+
+double Diode::getForwardVoltage() const {
+    return forwardVoltage;
+}
+
+double Diode::getZenerVoltage() const {
+    return zenerVoltage;
+}
+
+void Diode::setState(DiodeState state) {
+    currentState = state;
+}
+
+DiodeState Diode::getState() const {
+    return currentState;
+}
+
+void Diode::setBranchIndex(int index) {
+    branchIndex = index;
+}
+
+int Diode::getBranchIndex() const {
+    return branchIndex;
+}
+
+void Diode::addStamp(std::vector<std::vector<double>>& A, std::vector<double>& b, double t) {
+    // این تابع عمداً خالی گذاشته شده است
+    // منطق تمبر زنی دیودها در تابع تحلیل DC مدیریت می‌شود
 }

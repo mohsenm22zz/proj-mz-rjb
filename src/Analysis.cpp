@@ -18,7 +18,32 @@ void dcAnalysis(Circuit& circuit) {
             nonGroundNodes.push_back(node);
         }
     }
-
+    Circuit temp;/// Original Circuit without Diodes
+    for (Node *n: circuit.nodes){
+        temp.nodes.push_back(n);
+    }
+    for (Resistor r: circuit.resistors){
+        temp.resistors.push_back(r);
+    }
+    for (Capacitor c: circuit.capacitors){
+        temp.capacitors.push_back(c);
+    }
+    for (Inductor l: circuit.inductors){
+        temp.inductors.push_back(l);
+    }
+    for (VoltageSource v: circuit.voltageSources){
+        temp.voltageSources.push_back(v);
+    }
+    for (CurrentSource c: circuit.currentSources){
+        temp.currentSources.push_back(c);
+    }
+    for (string string1: circuit.groundNodeNames){
+        temp.groundNodeNames.push_back(string1);
+    }
+    Circuit temp2 = temp;
+    /// complete from here with adding 0 voltage and curren sources
+    /// 2^n case
+    /// then repeat for transient
     if (!nonGroundNodes.empty() || !circuit.voltageSources.empty() || !circuit.inductors.empty()) {
         circuit.set_MNA_A();
         circuit.set_MNA_RHS();

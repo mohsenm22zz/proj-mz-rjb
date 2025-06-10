@@ -1,16 +1,40 @@
 #pragma once
 
 #include "Component.h"
-#include <cmath>
+#include <string>
+#include <vector>
+
+enum DiodeType {
+    NORMAL,
+    ZENER
+};
+
+enum DiodeState {
+    STATE_OFF = 0,
+    STATE_FORWARD_ON = 1,
+    STATE_REVERSE_ON = 2
+};
 
 class Diode : public Component {
 public:
-    double Is;
-    double Vt;
-    double n;
+    Diode(const std::string& name, Node* n1, Node* n2, DiodeType type, double vf, double vz = 0.0);
 
-    Diode() : Is(1e-12), Vt(0.026), n(1.0) {}
+    DiodeType getDiodeType() const;
+    double getForwardVoltage() const;
+    double getZenerVoltage() const;
 
-    double getCurrent() override;
-    double getVoltage() override;
+    void setState(DiodeState state);
+    DiodeState getState() const;
+
+    void setBranchIndex(int index);
+    int getBranchIndex() const;
+
+    void addStamp(std::vector<std::vector<double>>& A, std::vector<double>& b, double t) override;
+
+private:
+    DiodeType diodeType;
+    DiodeState currentState;
+    double forwardVoltage;
+    double zenerVoltage;
+    int branchIndex;
 };
