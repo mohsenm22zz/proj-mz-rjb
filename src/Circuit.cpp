@@ -211,9 +211,9 @@ vector<vector<double>> Circuit::B() {
 
     for (const auto& d : diodes) {
         if (d.getState() == STATE_FORWARD_ON || d.getState() == STATE_REVERSE_ON) {
-            int diode_current_col = d.getBranchIndex(); // Use the assigned branch index
-            int idx1 = getNodeMatrixIndex(d.node1); // Anode
-            int idx2 = getNodeMatrixIndex(d.node2); // Cathode
+            int diode_current_col = d.getBranchIndex();
+            int idx1 = getNodeMatrixIndex(d.node1);
+            int idx2 = getNodeMatrixIndex(d.node2);
             if (idx1 != -1) b_matrix[idx1][diode_current_col] = 1.0;
             if (idx2 != -1) b_matrix[idx2][diode_current_col] = -1.0;
         }
@@ -260,7 +260,6 @@ vector<double> Circuit::J() {
         if (n_node_idx != -1) j_vector[n_node_idx] -= cs.value;
     }
 
-    // Capacitor stamping (for transient analysis)
     if (delta_t > 0) {
         for (const auto &cap: capacitors) {
             double cap_rhs_term = (cap.capacitance / delta_t) * cap.prevVoltage;
@@ -270,21 +269,18 @@ vector<double> Circuit::J() {
             if (idx2 != -1) j_vector[idx2] -= cap_rhs_term;
         }
     }
-    // Diodes removed from J(): Ideal diodes contributions are in E vector.
     return j_vector;
 }
 
 vector<double> Circuit::E() {
-    int m_vars = countTotalExtraVariables(); // Use the new helper
+    int m_vars = countTotalExtraVariables();
     if (m_vars == 0) return {};
     vector<double> e_vector(m_vars, 0.0);
 
-    // Voltage Source stamping
     for (size_t j = 0; j < voltageSources.size(); ++j) {
         e_vector[j] = voltageSources[j].value;
     }
 
-    // Inductor stamping (for transient analysis)
     if (delta_t > 0) {
         for (size_t k = 0; k < inductors.size(); ++k) {
             int inductor_row = voltageSources.size() + k;
@@ -292,27 +288,26 @@ vector<double> Circuit::E() {
         }
     }
 
-    // Active Diode stamping
     for (const auto& d : diodes) {
         if (d.getState() == STATE_FORWARD_ON) {
             int diode_row = d.getBranchIndex();
-            e_vector[diode_row] = d.getForwardVoltage(); // V_anode - V_cathode = Vf
+            e_vector[diode_row] = d.getForwardVoltage();
         } else if (d.getState() == STATE_REVERSE_ON) {
             int diode_row = d.getBranchIndex();
-            e_vector[diode_row] = -d.getZenerVoltage(); // V_anode - V_cathode = -Vz
+            e_vector[diode_row] = -d.getZenerVoltage();
         }
     }
     return e_vector;
 }
 
 void Circuit::set_MNA_A() {
-    assignDiodeBranchIndices(); // Assign indices before calculating MNA matrices
+    assignDiodeBranchIndices();
     vector<vector<double>> g_mat = G();
     vector<vector<double>> b_mat = B();
     vector<vector<double>> c_mat = C();
     vector<vector<double>> d_mat = D();
     int n = g_mat.size();
-    int m = countTotalExtraVariables(); // Use the new helper for 'm'
+    int m = countTotalExtraVariables();
 
     MNA_A.assign(n + m, vector<double>(n + m, 0.0));
     if (n > 0) {
@@ -346,11 +341,11 @@ void Circuit::set_MNA_A() {
 }
 
 void Circuit::set_MNA_RHS() {
-    assignDiodeBranchIndices(); // Ensure indices are assigned before calculating RHS
+    assignDiodeBranchIndices();
     vector<double> j_vec = J();
     vector<double> e_vec = E();
     int n = j_vec.size();
-    int m = countTotalExtraVariables(); // Use the new helper for 'm'
+    int m = countTotalExtraVariables();
     MNA_RHS.assign(n + m, 0.0);
     for (int i = 0; i < n; i++) MNA_RHS[i] = j_vec[i];
     for (int i = 0; i < m; i++) MNA_RHS[n + i] = e_vec[i];
@@ -371,8 +366,6 @@ void Circuit::updateComponentStates() {
     for (auto &ind: inductors) {
         ind.update(delta_t);
     }
-    // Diodes do not have a 'prevCurrent' or 'prevVoltage' to update in this context.
-    // Their states (ON/OFF) are handled by the iterative DC analysis.
 }
 
 void Circuit::clearComponentHistory() {
@@ -382,7 +375,6 @@ void Circuit::clearComponentHistory() {
     for (auto &vs: voltageSources) {
         vs.clearHistory();
     }
-    // No history for diodes in this class; their state is reset in dcAnalysis
 }
 
 bool Circuit::isNodeNameGround(const string &node_name) const {

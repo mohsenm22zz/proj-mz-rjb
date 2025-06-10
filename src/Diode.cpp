@@ -5,7 +5,7 @@
 using namespace std;
 
 Diode::Diode(const string &name, Node *n1, Node *n2, DiodeType type, double vf, double vz)
-        : Component(name, n1, n2),
+        :
           diodeType(type),
           currentState(STATE_OFF),
           forwardVoltage(vf),

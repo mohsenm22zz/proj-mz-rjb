@@ -47,7 +47,7 @@ public:
     Resistor* findResistor(const string& name);
     Capacitor* findCapacitor(const string& name);
     Inductor* findInductor(const string& name);
-    Diode* findDiode(const string& name); // Return pointer to diode object
+    Diode* findDiode(const string& name);
     CurrentSource* findCurrentSource(const string& name);
     VoltageSource* findVoltageSource(const string& name);
 
@@ -78,6 +78,6 @@ public:
     int getNodeMatrixIndex(const Node* target_node_ptr) const;
     int countNonGroundNodes() const;
 
-    int countTotalExtraVariables(); // Added
-    void assignDiodeBranchIndices(); // Added
+    int countTotalExtraVariables();
+    void assignDiodeBranchIndices();
 };

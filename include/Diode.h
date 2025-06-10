@@ -42,5 +42,5 @@ private:
     double forwardVoltage;
     double zenerVoltage;
     int branchIndex;
-    double current; // Added
+    double current;
 };

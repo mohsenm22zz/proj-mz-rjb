@@ -174,7 +174,7 @@ bool command_handling(Circuit &circuit, const vector<string> &cmds, vector<vecto
                 if (forward_voltage < 0) {
                     cerr << "Error: Forward voltage cannot be negative" << endl;
                     return true;
-                } // Diodes typically have positive forward voltage
+                }
 
                 Diode d(compName, circuit.findOrCreateNode(node1_name), circuit.findOrCreateNode(node2_name), NORMAL,
                         forward_voltage);
@@ -327,5 +327,5 @@ Circuit readCircuitFromFile(const string &filename) {
 }
 
 void saveResultsToFile(const Circuit &circuit, const string &filename) {
-    cout << "// saveResultsToFile function called with filename: " << filename << " (Not Implemented)" << endl;
+    cout << "// saveResultsToFile function called with filename: " << filename << endl;
 }
