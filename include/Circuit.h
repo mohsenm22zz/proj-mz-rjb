@@ -39,6 +39,8 @@ public:
     Circuit();
     ~Circuit();
 
+    void clear();
+
     void addNode(const string& name);
     Node* findNode(const string& name);
     Node* findOrCreateNode(const string& name);
@@ -78,7 +80,7 @@ public:
     void clearComponentHistory();
 
     bool isNodeNameGround(const string& node_name) const;
-    int getNodeMatrixIndex(const Node* target_node_ptr) const;
+    int getNodeMatrixIndex(const Node* node) const;
     int countNonGroundNodes() const;
 
     int countTotalExtraVariables();

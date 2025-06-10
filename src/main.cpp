@@ -13,6 +13,7 @@
 using namespace std;
 
 double stonum(const string &s);
+
 void clrscrr();
 
 int main() {
@@ -43,7 +44,10 @@ int main() {
 
         clrscrr();
         cout << "---=== [Simulation Results] ===---" << endl;
-        handleErrors(circuit);
+        if (!handleErrors(circuit)) {
+            circuit.clear();
+            continue;
+        }
 
         if (analysisCommands.empty()) {
             analysisCommands.push_back({".dc"});
@@ -57,12 +61,12 @@ int main() {
                 dcAnalysis(circuit);
                 cout << fixed << setprecision(4);
                 cout << "\n// --- DC Analysis Results ---" << endl;
-                for (auto* node : circuit.nodes) {
-                    if(!node->isGround) {
+                for (auto *node: circuit.nodes) {
+                    if (!node->isGround) {
                         cout << "  V(" << node->name << ") = " << node->getVoltage() << " V" << endl;
                     }
                 }
-                for (auto& vs : circuit.voltageSources) {
+                for (auto &vs: circuit.voltageSources) {
                     cout << "  I(" << vs.name << ") = " << vs.getCurrent() << " A" << endl;
                 }
                 cout << "// --------------------------" << endl;
@@ -77,13 +81,13 @@ int main() {
                     double t_stop = stonum(cmd_parts[2]);
                     transientAnalysis(circuit, t_step, t_stop);
 
-                    cout << "\n// --- Stored History Example ---" << endl;
+                    cout << "\n// --- Graphs: ---" << endl;
                     cout << fixed << setprecision(4);
 
-                    for (const auto* node : circuit.nodes) {
+                    for (const auto *node: circuit.nodes) {
                         if (!node->isGround) {
-                            cout << "  History for Node " << node->name << ":" << endl;
-                            for (const auto& point : node->voltage_history) {
+                            cout << "  graph node: " << node->name << ":" << endl;
+                            for (const auto &point: node->voltage_history) {
                                 cout << "    Time: " << setw(8) << left << point.first
                                      << " Voltage: " << point.second << " V" << endl;
                             }
@@ -95,6 +99,7 @@ int main() {
             }
         }
         cout << "\nSimulation finished. Circuit cleared." << endl;
+        circuit.clear();
     }
     return 0;
 }

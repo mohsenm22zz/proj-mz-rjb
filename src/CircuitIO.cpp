@@ -14,6 +14,19 @@ double stonum(const string &s) {
         throw invalid_argument("Empty value");
     }
     string nums = s;
+    for (int i = 0; i < nums.size(); i++){
+        if (nums[i]=='e'){
+            string c_s = nums.substr(0,i);
+            string power_s = nums.substr(i+1);
+            try {
+                double c = stod(c_s);
+                double power = stod(power_s);
+                return c* pow(10,power);
+            }catch (const exception &e) {
+                throw invalid_argument("Invalid number format in \"" + s + "\"");
+            }
+        }
+    }
     char prefix = 0;
     if (!nums.empty() && isalpha(nums.back())) {
         prefix = tolower(nums.back());
@@ -316,10 +329,119 @@ bool command_handling(Circuit &circuit, const vector<string> &cmds, vector<vecto
     return true;
 }
 
-void handleErrors(const Circuit &circuit) {
+bool handleErrors(const Circuit &circuit) {
     if (circuit.groundNodeNames.empty() && !circuit.nodes.empty()) {
-        cerr << "Error: No ground node detected in the circuit. Analysis may be unstable or incorrect." << endl;
+        cerr << "Error: Circuit not valid." << endl;
+        return false;
     }
+    vector<Node *> connected;
+    for (Resistor comp: circuit.resistors) {
+        bool added1 = false, added2 = false;
+        for (Node *n: connected) {
+            if (comp.node1 == n) {
+                added1 = true;
+            }
+        }
+        for (Node *n: connected) {
+            if (comp.node2 == n) {
+                added2 = true;
+            }
+        }
+        if (!added1)
+            connected.push_back(comp.node1);
+        if (!added2)
+            connected.push_back(comp.node2);
+    }
+    for (Capacitor comp: circuit.capacitors) {
+        bool added1 = false, added2 = false;
+        for (Node *n: connected) {
+            if (comp.node1 == n) {
+                added1 = true;
+            }
+        }
+        for (Node *n: connected) {
+            if (comp.node2 == n) {
+                added2 = true;
+            }
+        }
+        if (!added1)
+            connected.push_back(comp.node1);
+        if (!added2)
+            connected.push_back(comp.node2);
+    }
+    for (Inductor comp: circuit.inductors) {
+        bool added1 = false, added2 = false;
+        for (Node *n: connected) {
+            if (comp.node1 == n) {
+                added1 = true;
+            }
+        }
+        for (Node *n: connected) {
+            if (comp.node2 == n) {
+                added2 = true;
+            }
+        }
+        if (!added1)
+            connected.push_back(comp.node1);
+        if (!added2)
+            connected.push_back(comp.node2);
+    }
+    for (Diode comp: circuit.diodes) {
+        bool added1 = false, added2 = false;
+        for (Node *n: connected) {
+            if (comp.node1 == n) {
+                added1 = true;
+            }
+        }
+        for (Node *n: connected) {
+            if (comp.node2 == n) {
+                added2 = true;
+            }
+        }
+        if (!added1)
+            connected.push_back(comp.node1);
+        if (!added2)
+            connected.push_back(comp.node2);
+    }
+    for (VoltageSource comp: circuit.voltageSources) {
+        bool added1 = false, added2 = false;
+        for (Node *n: connected) {
+            if (comp.node1 == n) {
+                added1 = true;
+            }
+        }
+        for (Node *n: connected) {
+            if (comp.node2 == n) {
+                added2 = true;
+            }
+        }
+        if (!added1)
+            connected.push_back(comp.node1);
+        if (!added2)
+            connected.push_back(comp.node2);
+    }
+    for (CurrentSource comp: circuit.currentSources) {
+        bool added1 = false, added2 = false;
+        for (Node *n: connected) {
+            if (comp.node1 == n) {
+                added1 = true;
+            }
+        }
+        for (Node *n: connected) {
+            if (comp.node2 == n) {
+                added2 = true;
+            }
+        }
+        if (!added1)
+            connected.push_back(comp.node1);
+        if (!added2)
+            connected.push_back(comp.node2);
+    }
+    if (connected.size()<circuit.nodes.size()+circuit.countNonGroundNodes()){
+        cerr << "Error: Circuit not valid." << endl;
+        return false;
+    }
+    return true;
 }
 
 Circuit readCircuitFromFile(const string &filename) {
