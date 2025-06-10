@@ -13,7 +13,6 @@
 using namespace std;
 
 double stonum(const string &s);
-
 void clrscrr();
 
 int main() {
@@ -82,10 +81,7 @@ int main() {
 
         clrscrr();
         cout << "---=== [Simulation Results] ===---" << endl;
-        if (!handleErrors(circuit)) {
-            circuit.clear();
-            continue;
-        }
+        handleErrors(circuit);
 
         if (analysisCommands.empty()) {
             analysisCommands.push_back({".dc"});
@@ -96,18 +92,66 @@ int main() {
             transform(analysisType.begin(), analysisType.end(), analysisType.begin(), ::tolower);
 
             if (analysisType == ".dc") {
-                dcAnalysis(circuit);
-                cout << fixed << setprecision(4);
-                cout << "\n// --- DC Analysis Results ---" << endl;
-                for (auto *node: circuit.nodes) {
-                    if (!node->isGround) {
-                        cout << "  V(" << node->name << ") = " << node->getVoltage() << " V" << endl;
+                if (cmd_parts.size() == 5) {
+                    try {
+                        string sourceName = cmd_parts[1];
+                        transform(sourceName.begin(), sourceName.end(), sourceName.begin(), ::toupper);
+                        double start = stonum(cmd_parts[2]);
+                        double end = stonum(cmd_parts[3]);
+                        double step = stonum(cmd_parts[4]);
+
+                        if (step <= 0) {
+                            cerr << "Error: Sweep step must be positive." << endl;
+                            continue;
+                        }
+
+                        // Call the analysis function (it will populate the history vectors)
+                        dcSweepAnalysis(circuit, sourceName, start, end, step);
+
+                        // Now, print the results from the history vectors
+                        cout << "\n// --- DC Sweep Analysis Results ---" << endl;
+                        cout << fixed << setprecision(4);
+
+                        // Print node voltage results
+                        for (const auto* node : circuit.nodes) {
+                            if (!node->isGround && !node->dc_sweep_history.empty()) {
+                                cout << "  History for Node " << node->name << " (vs " << sourceName << "):" << endl;
+                                for (const auto& point : node->dc_sweep_history) {
+                                    cout << "    " << sourceName << " = " << setw(8) << left << point.first
+                                         << " -> V(" << node->name << ") = " << point.second << " V" << endl;
+                                }
+                            }
+                        }
+
+                        for (const auto& vs : circuit.voltageSources) {
+                            if (!vs.dc_sweep_current_history.empty()) {
+                                cout << "  History for Current " << "I(" << vs.name << ") (vs " << sourceName << "):" << endl;
+                                for (const auto& point : vs.dc_sweep_current_history) {
+                                    cout << "    " << sourceName << " = " << setw(8) << left << point.first
+                                         << " -> I(" << vs.name << ") = " << point.second << " A" << endl;
+                                }
+                            }
+                        }
+                        cout << "// --------------------------------" << endl;
+
+                    } catch (const exception &e) {
+                        cerr << "Error: Invalid parameters for .dc sweep. Format: .dc <source> <start> <end> <step>" << endl;
                     }
                 }
-                for (auto &vs: circuit.voltageSources) {
-                    cout << "  I(" << vs.name << ") = " << vs.getCurrent() << " A" << endl;
+                else {
+                    dcAnalysis(circuit);
+                    cout << fixed << setprecision(4);
+                    cout << "\n// --- DC Analysis Results ---" << endl;
+                    for (auto *node: circuit.nodes) {
+                        if (!node->isGround) {
+                            cout << "  V(" << node->name << ") = " << node->getVoltage() << " V" << endl;
+                        }
+                    }
+                    for (auto &vs: circuit.voltageSources) {
+                        cout << "  I(" << vs.name << ") = " << vs.getCurrent() << " A" << endl;
+                    }
+                    cout << "// --------------------------" << endl;
                 }
-                cout << "// --------------------------" << endl;
 
             } else if (analysisType == ".tran") {
                 if (cmd_parts.size() < 3) {
@@ -119,13 +163,13 @@ int main() {
                     double t_stop = stonum(cmd_parts[2]);
                     transientAnalysis(circuit, t_step, t_stop);
 
-                    cout << "\n// --- Graphs: ---" << endl;
+                    cout << "\n// --- Stored History Example ---" << endl;
                     cout << fixed << setprecision(4);
 
-                    for (const auto *node: circuit.nodes) {
+                    for (const auto* node : circuit.nodes) {
                         if (!node->isGround) {
-                            cout << "  graph node: " << node->name << ":" << endl;
-                            for (const auto &point: node->voltage_history) {
+                            cout << "  History for Node " << node->name << ":" << endl;
+                            for (const auto& point : node->voltage_history) {
                                 cout << "    Time: " << setw(8) << left << point.first
                                      << " Voltage: " << point.second << " V" << endl;
                             }
@@ -137,7 +181,6 @@ int main() {
             }
         }
         cout << "\nSimulation finished. Circuit cleared." << endl;
-        circuit.clear();
     }
     return 0;
 }

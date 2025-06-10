@@ -31,4 +31,5 @@ void Node::addVoltageHistoryPoint(double time, double vol) {
 
 void Node::clearHistory() {
     voltage_history.clear();
+    dc_sweep_history.clear();
 }

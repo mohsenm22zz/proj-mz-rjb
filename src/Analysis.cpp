@@ -256,3 +256,31 @@ void result_from_vec(Circuit& circuit, const vector<double>& solvedVoltages, con
         }
     }
 }
+
+void dcSweepAnalysis(Circuit& circuit, const string& sourceName, double start, double end, double step) {
+    Component* sweepSourceComponent = nullptr;
+    char sourceType = toupper(sourceName[0]);
+    if (sourceType == 'V') sweepSourceComponent = circuit.findVoltageSource(sourceName);
+    else if (sourceType == 'I') sweepSourceComponent = circuit.findCurrentSource(sourceName);
+
+    if (!sweepSourceComponent) {
+        cerr << "Error: Sweep source '" << sourceName << "' not found." << endl;
+        return;
+    }
+
+    for (double value = start; value <= end; value += step) {
+        if (sourceType == 'V') static_cast<VoltageSource*>(sweepSourceComponent)->value = value;
+        else if (sourceType == 'I') static_cast<CurrentSource*>(sweepSourceComponent)->value = value;
+
+        dcAnalysis(circuit);
+
+        for (auto* node : circuit.nodes) {
+            if (!node->isGround) {
+                node->dc_sweep_history.push_back({value, node->getVoltage()});
+            }
+        }
+        for (auto& vs : circuit.voltageSources) {
+            vs.dc_sweep_current_history.push_back({value, vs.getCurrent()});
+        }
+    }
+}

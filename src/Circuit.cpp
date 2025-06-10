@@ -6,26 +6,10 @@
 Circuit::Circuit() : delta_t(0) {}
 
 Circuit::~Circuit() {
-    clear();
-}
-
-void Circuit::clear() {
-    for (Node* node : nodes) {
+    for (Node *node: nodes) {
         delete node;
     }
     nodes.clear();
-    resistors.clear();
-    capacitors.clear();
-    inductors.clear();
-    diodes.clear();
-    voltageSources.clear();
-    currentSources.clear();
-    groundNodeNames.clear();
-    MNA_A.clear();
-    MNA_RHS.clear();
-    MNA_solution.clear();
-
-    delta_t = 0.0;
 }
 
 void Circuit::addNode(const string &name) {
@@ -431,8 +415,6 @@ int Circuit::countNonGroundNodes() const {
 
 bool Circuit::renameNode(const string& oldName, const string& newName,
                          bool& errorOldNameNotFound, bool& errorNewNameExists, bool& errorIsGround) {
-
-    // Reset all flags at the beginning
     errorOldNameNotFound = false;
     errorNewNameExists = false;
     errorIsGround = false;

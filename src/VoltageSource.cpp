@@ -20,4 +20,5 @@ void VoltageSource::addCurrentHistoryPoint(double time, double cur) {
 
 void VoltageSource::clearHistory() {
     current_history.clear();
+    dc_sweep_current_history.clear();
 }
