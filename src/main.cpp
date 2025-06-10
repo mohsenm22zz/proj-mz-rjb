@@ -42,7 +42,6 @@ int main() {
 
         if (line == "exit") break;
 
-        clrscrr();
         cout << "---=== [Simulation Results] ===---" << endl;
         handleErrors(circuit);
 
@@ -57,7 +56,7 @@ int main() {
             if (analysisType == ".dc") {
                 dcAnalysis(circuit);
                 cout << fixed << setprecision(4);
-                cout << "\n// --- DC Analysis Results ---" << endl;
+                cout << ".DC Results" << endl;
                 for (auto* node : circuit.nodes) {
                     if(!node->isGround) {
                         cout << "  V(" << node->name << ") = " << node->getVoltage() << " V" << endl;
@@ -78,12 +77,12 @@ int main() {
                     double t_stop = stonum(cmd_parts[2]);
                     transientAnalysis(circuit, t_step, t_stop);
 
-                    cout << "\n// --- Stored History Example ---" << endl;
+                    cout << ".transient results" << endl;
                     cout << fixed << setprecision(4);
 
                     for (const auto* node : circuit.nodes) {
                         if (!node->isGround) {
-                            cout << "  History for Node " << node->name << ":" << endl;
+                            cout << "graph:" << node->name << ":" << endl;
                             for (const auto& point : node->voltage_history) {
                                 cout << "    Time: " << setw(8) << left << point.first
                                      << " Voltage: " << point.second << " V" << endl;
@@ -95,7 +94,7 @@ int main() {
                 }
             }
         }
-        cout << "\nSimulation finished. Circuit cleared." << endl;
+        cout << "Circuit cleared." << endl;
     }
     return 0;
 }
