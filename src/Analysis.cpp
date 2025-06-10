@@ -4,7 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <iomanip>
-#include <cmath> // For fabs
+#include <cmath>
 
 using namespace std;
 
@@ -12,8 +12,7 @@ void result_from_vec(Circuit& circuit, const vector<double>& solvedVoltages, con
 
 void dcAnalysis(Circuit& circuit) {
     cout << "// Performing DC Analysis..." << endl;
-    circuit.setDeltaT(1e12); // For DC analysis, capacitors act as open, inductors as short
-
+    circuit.setDeltaT(1e12);
     vector<Node*> nonGroundNodes;
     for (auto* node : circuit.nodes) {
         if (!node->isGround) {
@@ -24,8 +23,7 @@ void dcAnalysis(Circuit& circuit) {
     const int MAX_DIODE_ITERATIONS = 100;
     bool converged = false;
     int iteration_count = 0;
-
-    // Initialize diode states (e.g., all off) - this needs to be done once before the loop
+    const double EPSILON_CURRENT = 1e-9;
     for (auto& diode : circuit.diodes) {
         diode.setState(STATE_OFF);
     }
@@ -34,18 +32,18 @@ void dcAnalysis(Circuit& circuit) {
         converged = true;
         iteration_count++;
 
-        // Store previous diode states
         vector<DiodeState> previous_diode_states;
         for (const auto& diode : circuit.diodes) {
             previous_diode_states.push_back(diode.getState());
         }
 
-        circuit.set_MNA_A(); // MNA_A depends on diode states via Circuit::G()
-        circuit.set_MNA_RHS(); // MNA_RHS depends on diode states via Circuit::J()
+        circuit.assignDiodeBranchIndices();
 
-        if (circuit.MNA_A.empty() && circuit.MNA_RHS.empty() && circuit.nodes.empty() && circuit.voltageSources.empty() && circuit.inductors.empty()) {
-            // Handle case of empty circuit or no solvable elements
-            cout << "// No active components for MNA solution." << endl;
+        circuit.set_MNA_A();
+        circuit.set_MNA_RHS();
+
+        if (circuit.MNA_A.empty() || circuit.MNA_A[0].empty() || circuit.MNA_RHS.empty() || circuit.MNA_A.size() != circuit.MNA_RHS.size()) {
+            cout << "// No solvable MNA system for the current circuit state." << endl;
             break;
         }
 
@@ -54,51 +52,52 @@ void dcAnalysis(Circuit& circuit) {
             solved_solution = gaussianElimination(circuit.MNA_A, circuit.MNA_RHS);
         } catch (const exception& e) {
             cerr << "Error during Gaussian Elimination: " << e.what() << endl;
-            converged = false; // Mark as not converged to stop
+            converged = false;
             break;
         }
 
         result_from_vec(circuit, solved_solution, nonGroundNodes);
 
-        // Update current sources for voltage sources and inductors based on solution
-        int num_nodes = nonGroundNodes.size();
-        for(size_t i = 0; i < circuit.voltageSources.size(); ++i) {
-            circuit.voltageSources[i].setCurrent(solved_solution[num_nodes + i]);
-        }
-        for(size_t i = 0; i < circuit.inductors.size(); ++i) {
-            circuit.inductors[i].setInductorCurrent(solved_solution[num_nodes + circuit.voltageSources.size() + i]);
-        }
-
-        // Update diode states based on new voltages and check for convergence
         for (size_t i = 0; i < circuit.diodes.size(); ++i) {
             Diode& current_diode = circuit.diodes[i];
             DiodeState old_state = previous_diode_states[i];
 
             double v_anode = current_diode.node1->getVoltage();
             double v_cathode = current_diode.node2->getVoltage();
-            double v_diode = v_anode - v_cathode;
-
-            DiodeState new_state = STATE_OFF;
+            double v_diode_across = v_anode - v_cathode;
+            DiodeState new_state = old_state;
 
             if (current_diode.getDiodeType() == NORMAL) {
-                if (v_diode >= current_diode.getForwardVoltage()) {
-                    new_state = STATE_FORWARD_ON;
-                } else {
-                    new_state = STATE_OFF;
+                if (old_state == STATE_OFF) {
+                    if (v_diode_across >= current_diode.getForwardVoltage() - EPSILON_CURRENT) {
+                        new_state = STATE_FORWARD_ON;
+                    }
+                } else if (old_state == STATE_FORWARD_ON) {
+                    if (current_diode.getCurrent() < -EPSILON_CURRENT) {
+                        new_state = STATE_OFF;
+                    }
                 }
             } else if (current_diode.getDiodeType() == ZENER) {
-                if (v_diode >= current_diode.getForwardVoltage()) {
-                    new_state = STATE_FORWARD_ON;
-                } else if (v_diode <= -current_diode.getZenerVoltage()) {
-                    new_state = STATE_REVERSE_ON;
-                } else {
-                    new_state = STATE_OFF;
+                if (old_state == STATE_OFF) {
+                    if (v_diode_across >= current_diode.getForwardVoltage() - EPSILON_CURRENT) {
+                        new_state = STATE_FORWARD_ON;
+                    } else if (v_diode_across <= -current_diode.getZenerVoltage() + EPSILON_CURRENT) {
+                        new_state = STATE_REVERSE_ON;
+                    }
+                } else if (old_state == STATE_FORWARD_ON) {
+                    if (current_diode.getCurrent() < -EPSILON_CURRENT) {
+                        new_state = STATE_OFF;
+                    }
+                } else if (old_state == STATE_REVERSE_ON) {
+                    if (current_diode.getCurrent() > EPSILON_CURRENT) {
+                        new_state = STATE_OFF;
+                    }
                 }
             }
-            current_diode.setState(new_state);
 
             if (new_state != old_state) {
                 converged = false;
+                current_diode.setState(new_state);
             }
         }
 
@@ -135,22 +134,29 @@ void transientAnalysis(Circuit& circuit, double t_step, double t_stop) {
             vs.addCurrentHistoryPoint(t, vs.getCurrent());
         }
 
+        circuit.assignDiodeBranchIndices();
+
         circuit.set_MNA_A();
         circuit.set_MNA_RHS();
-        if (circuit.MNA_A.empty()) break;
 
-        vector<double> solved_solution = gaussianElimination(circuit.MNA_A, circuit.MNA_RHS);
+        if (circuit.MNA_A.empty() || circuit.MNA_A[0].empty() || circuit.MNA_RHS.empty() || circuit.MNA_A.size() != circuit.MNA_RHS.size()) {
+            cout << "// No solvable MNA system for the current circuit state at t=" << t << endl;
+            break;
+        }
+
+        vector<double> solved_solution;
+        try {
+            solved_solution = gaussianElimination(circuit.MNA_A, circuit.MNA_RHS);
+        } catch (const exception& e) {
+            cerr << "Error during Gaussian Elimination at t=" << t << ": " << e.what() << endl;
+            break;
+        }
+
         result_from_vec(circuit, solved_solution, nonGroundNodes);
 
-        int num_nodes = nonGroundNodes.size();
-        for(size_t i = 0; i < circuit.voltageSources.size(); ++i) {
-            circuit.voltageSources[i].setCurrent(solved_solution[num_nodes + i]);
-        }
-        for(size_t i = 0; i < circuit.inductors.size(); ++i) {
-            circuit.inductors[i].setInductorCurrent(solved_solution[num_nodes + circuit.voltageSources.size() + i]);
-        }
         circuit.updateComponentStates();
     }
+    cout << "// Transient Analysis complete." << endl;
 }
 
 void result_from_vec(Circuit& circuit, const vector<double>& solvedVoltages, const vector<Node*>& nonGroundNodes) {
@@ -160,5 +166,28 @@ void result_from_vec(Circuit& circuit, const vector<double>& solvedVoltages, con
     }
     for (size_t i = 0; i < nonGroundNodes.size(); ++i) {
         nonGroundNodes[i]->setVoltage(solvedVoltages[i]);
+    }
+
+    int current_idx_offset = nonGroundNodes.size();
+
+    for(size_t i = 0; i < circuit.voltageSources.size(); ++i) {
+        circuit.voltageSources[i].setCurrent(solvedVoltages[current_idx_offset + i]);
+    }
+    current_idx_offset += circuit.voltageSources.size();
+
+    for(size_t i = 0; i < circuit.inductors.size(); ++i) {
+        circuit.inductors[i].setInductorCurrent(solvedVoltages[current_idx_offset + i]);
+    }
+    current_idx_offset += circuit.inductors.size();
+
+    for (auto& diode : circuit.diodes) {
+        if (diode.getState() == STATE_FORWARD_ON || diode.getState() == STATE_REVERSE_ON) {
+            int diode_solution_idx = diode.getBranchIndex(); // Get the assigned MNA branch index
+            if (diode_solution_idx != -1 && diode_solution_idx >= 0 && diode_solution_idx < solvedVoltages.size()) {
+                diode.setCurrent(solvedVoltages[diode_solution_idx]);
+            } else {
+                cerr << "Warning: Diode " << diode.name << " has invalid branch index or solution size mismatch. Cannot set current." << endl;
+            }
+        }
     }
 }

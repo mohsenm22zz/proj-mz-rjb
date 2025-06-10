@@ -32,9 +32,9 @@ public:
     int getBranchIndex() const;
 
     double getCurrent() override;
+    void setCurrent(double c);
     double getVoltage() override;
 
-    void addStamp(vector<vector<double>>& A, vector<double>& b, double t);
 
 private:
     DiodeType diodeType;
@@ -42,4 +42,5 @@ private:
     double forwardVoltage;
     double zenerVoltage;
     int branchIndex;
+    double current; // Added
 };

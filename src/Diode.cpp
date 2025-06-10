@@ -2,17 +2,16 @@
 #include "Node.h"
 #include <cmath>
 
-const double ON_RESISTANCE = 1e-3;
-const double OFF_RESISTANCE = 1e12;
+using namespace std;
 
-Diode::Diode(const std::string& name, Node* n1, Node* n2, DiodeType type, double vf, double vz)
+Diode::Diode(const string &name, Node *n1, Node *n2, DiodeType type, double vf, double vz)
         : Component(name, n1, n2),
           diodeType(type),
           currentState(STATE_OFF),
           forwardVoltage(vf),
           zenerVoltage(vz),
-          branchIndex(-1)
-{
+          branchIndex(-1),
+          current(0.0) {
 }
 
 DiodeType Diode::getDiodeType() const {
@@ -43,34 +42,23 @@ int Diode::getBranchIndex() const {
     return branchIndex;
 }
 
-// Implementation for the pure virtual functions inherited from Component
+void Diode::setCurrent(double c) {
+    current = c;
+}
+
 double Diode::getCurrent() {
-    if (!node1 || !node2) return 0.0;
-
-    double v_diode = node1->getVoltage() - node2->getVoltage();
-
-    switch (currentState) {
-        case STATE_OFF:
-            // Very small current when off (due to large off-resistance)
-            return v_diode / OFF_RESISTANCE;
-        case STATE_FORWARD_ON:
-            // Current based on forward voltage drop and on-resistance
-            return (v_diode - forwardVoltage) / ON_RESISTANCE;
-        case STATE_REVERSE_ON:
-            // Current based on Zener voltage drop and on-resistance
-            // Note: Zener current flows in reverse direction, so voltage is node2-node1, or -(node1-node2)
-            return (v_diode - (-zenerVoltage)) / ON_RESISTANCE; // (v_diode + zenerVoltage) / ON_RESISTANCE
-        default:
-            return 0.0;
+    if (currentState == STATE_OFF) {
+        return 0.0;
     }
+    return current;
 }
 
 double Diode::getVoltage() {
     if (!node1 || !node2) return 0.0;
-    // Return the absolute voltage difference across the diode's terminals
-    return fabs(node1->getVoltage() - node2->getVoltage());
-}
-
-void Diode::addStamp(std::vector<std::vector<double>>& A, std::vector<double>& b, double t) {
-    // This function is intentionally left empty as diode stamping logic is handled in the DC analysis function.
+    if (currentState == STATE_FORWARD_ON) {
+        return forwardVoltage;
+    } else if (currentState == STATE_REVERSE_ON) {
+        return -zenerVoltage;
+    }
+    return node1->getVoltage() - node2->getVoltage();
 }

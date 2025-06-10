@@ -133,6 +133,27 @@ bool Circuit::deleteCurrentSource(const string &name) {
     return false;
 }
 
+int Circuit::countTotalExtraVariables() {
+    int m_vars = voltageSources.size() + inductors.size();
+    for (const auto& diode : diodes) {
+        if (diode.getState() == STATE_FORWARD_ON || diode.getState() == STATE_REVERSE_ON) {
+            m_vars++;
+        }
+    }
+    return m_vars;
+}
+
+void Circuit::assignDiodeBranchIndices() {
+    int current_branch_idx = voltageSources.size() + inductors.size();
+    for (auto& diode : diodes) {
+        if (diode.getState() == STATE_FORWARD_ON || diode.getState() == STATE_REVERSE_ON) {
+            diode.setBranchIndex(current_branch_idx++);
+        } else {
+            diode.setBranchIndex(-1);
+        }
+    }
+}
+
 vector<vector<double>> Circuit::G() {
     int num_non_gnd_nodes = countNonGroundNodes();
     vector<vector<double>> g_matrix(num_non_gnd_nodes, vector<double>(num_non_gnd_nodes, 0.0));
@@ -149,6 +170,7 @@ vector<vector<double>> Circuit::G() {
             g_matrix[idx2][idx1] -= conductance;
         }
     }
+
     if (delta_t > 0) {
         for (const auto &cap: capacitors) {
             double equiv_conductance = cap.capacitance / delta_t;
@@ -162,48 +184,39 @@ vector<vector<double>> Circuit::G() {
             }
         }
     }
-
-    double ON_RESISTANCE = 1e-3;
-    double OFF_RESISTANCE = 1e12;
-
-    for (const auto &d: diodes) {
-        double diode_conductance = 0.0;
-        if (d.getState() == STATE_FORWARD_ON || d.getState() == STATE_REVERSE_ON) {
-            diode_conductance = 1.0 / ON_RESISTANCE;
-        } else { // STATE_OFF
-            diode_conductance = 1.0 / OFF_RESISTANCE;
-        }
-
-        int idx1 = getNodeMatrixIndex(d.node1);
-        int idx2 = getNodeMatrixIndex(d.node2);
-
-        if (idx1 != -1) g_matrix[idx1][idx1] += diode_conductance;
-        if (idx2 != -1) g_matrix[idx2][idx2] += diode_conductance;
-        if (idx1 != -1 && idx2 != -1) {
-            g_matrix[idx1][idx2] -= diode_conductance;
-            g_matrix[idx2][idx1] -= diode_conductance;
-        }
-    }
     return g_matrix;
 }
 
 vector<vector<double>> Circuit::B() {
     int num_non_gnd_nodes = countNonGroundNodes();
-    int m_vars = voltageSources.size() + inductors.size();
+    int m_vars = countTotalExtraVariables();
     if (m_vars == 0) return {};
+
     vector<vector<double>> b_matrix(num_non_gnd_nodes, vector<double>(m_vars, 0.0));
+
     for (size_t j = 0; j < voltageSources.size(); ++j) {
         int p_node_idx = getNodeMatrixIndex(voltageSources[j].node1);
         int n_node_idx = getNodeMatrixIndex(voltageSources[j].node2);
         if (p_node_idx != -1) b_matrix[p_node_idx][j] = 1.0;
         if (n_node_idx != -1) b_matrix[n_node_idx][j] = -1.0;
     }
+
     for (size_t k = 0; k < inductors.size(); ++k) {
         int inductor_current_col = voltageSources.size() + k;
         int idx1 = getNodeMatrixIndex(inductors[k].node1);
         int idx2 = getNodeMatrixIndex(inductors[k].node2);
         if (idx1 != -1) b_matrix[idx1][inductor_current_col] = 1.0;
         if (idx2 != -1) b_matrix[idx2][inductor_current_col] = -1.0;
+    }
+
+    for (const auto& d : diodes) {
+        if (d.getState() == STATE_FORWARD_ON || d.getState() == STATE_REVERSE_ON) {
+            int diode_current_col = d.getBranchIndex(); // Use the assigned branch index
+            int idx1 = getNodeMatrixIndex(d.node1); // Anode
+            int idx2 = getNodeMatrixIndex(d.node2); // Cathode
+            if (idx1 != -1) b_matrix[idx1][diode_current_col] = 1.0;
+            if (idx2 != -1) b_matrix[idx2][diode_current_col] = -1.0;
+        }
     }
     return b_matrix;
 }
@@ -223,9 +236,10 @@ vector<vector<double>> Circuit::C() {
 }
 
 vector<vector<double>> Circuit::D() {
-    int m_vars = voltageSources.size() + inductors.size();
+    int m_vars = countTotalExtraVariables();
     if (m_vars == 0) return {};
     vector<vector<double>> d_matrix(m_vars, vector<double>(m_vars, 0.0));
+
     if (delta_t > 0) {
         for (size_t k = 0; k < inductors.size(); ++k) {
             int inductor_var_idx = voltageSources.size() + k;
@@ -238,12 +252,15 @@ vector<vector<double>> Circuit::D() {
 vector<double> Circuit::J() {
     int num_non_gnd_nodes = countNonGroundNodes();
     vector<double> j_vector(num_non_gnd_nodes, 0.0);
+
     for (const auto &cs: currentSources) {
         int p_node_idx = getNodeMatrixIndex(cs.node1);
         int n_node_idx = getNodeMatrixIndex(cs.node2);
         if (p_node_idx != -1) j_vector[p_node_idx] += cs.value;
         if (n_node_idx != -1) j_vector[n_node_idx] -= cs.value;
     }
+
+    // Capacitor stamping (for transient analysis)
     if (delta_t > 0) {
         for (const auto &cap: capacitors) {
             double cap_rhs_term = (cap.capacitance / delta_t) * cap.prevVoltage;
@@ -253,63 +270,87 @@ vector<double> Circuit::J() {
             if (idx2 != -1) j_vector[idx2] -= cap_rhs_term;
         }
     }
-
-    // Diode contributions to J vector (current source part from voltage offset)
-    double ON_RESISTANCE = 1e-3; // Same as in G()
-
-    for (const auto &d: diodes) {
-        int idx1 = getNodeMatrixIndex(d.node1); // Anode
-        int idx2 = getNodeMatrixIndex(d.node2); // Cathode
-
-        if (d.getState() == STATE_FORWARD_ON) {
-            double current_from_offset = d.getForwardVoltage() / ON_RESISTANCE;
-            if (idx1 != -1) j_vector[idx1] -= current_from_offset; // Current flows *into* anode node (from source)
-            if (idx2 != -1) j_vector[idx2] += current_from_offset; // Current flows *out of* cathode node (to source)
-        } else if (d.getState() == STATE_REVERSE_ON) {
-            // For Zener, current flows from cathode to anode for breakdown
-            double current_from_offset = d.getZenerVoltage() / ON_RESISTANCE;
-            if (idx1 != -1) j_vector[idx1] += current_from_offset; // Current flows *out of* anode node (to source)
-            if (idx2 != -1) j_vector[idx2] -= current_from_offset; // Current flows *into* cathode node (from source)
-        }
-    }
+    // Diodes removed from J(): Ideal diodes contributions are in E vector.
     return j_vector;
 }
 
 vector<double> Circuit::E() {
-    int m_vars = voltageSources.size() + inductors.size();
+    int m_vars = countTotalExtraVariables(); // Use the new helper
     if (m_vars == 0) return {};
     vector<double> e_vector(m_vars, 0.0);
+
+    // Voltage Source stamping
     for (size_t j = 0; j < voltageSources.size(); ++j) {
         e_vector[j] = voltageSources[j].value;
     }
+
+    // Inductor stamping (for transient analysis)
     if (delta_t > 0) {
         for (size_t k = 0; k < inductors.size(); ++k) {
             int inductor_row = voltageSources.size() + k;
             e_vector[inductor_row] = -(inductors[k].inductance / delta_t) * inductors[k].prevCurrent;
         }
     }
+
+    // Active Diode stamping
+    for (const auto& d : diodes) {
+        if (d.getState() == STATE_FORWARD_ON) {
+            int diode_row = d.getBranchIndex();
+            e_vector[diode_row] = d.getForwardVoltage(); // V_anode - V_cathode = Vf
+        } else if (d.getState() == STATE_REVERSE_ON) {
+            int diode_row = d.getBranchIndex();
+            e_vector[diode_row] = -d.getZenerVoltage(); // V_anode - V_cathode = -Vz
+        }
+    }
     return e_vector;
 }
 
 void Circuit::set_MNA_A() {
+    assignDiodeBranchIndices(); // Assign indices before calculating MNA matrices
     vector<vector<double>> g_mat = G();
     vector<vector<double>> b_mat = B();
     vector<vector<double>> c_mat = C();
     vector<vector<double>> d_mat = D();
     int n = g_mat.size();
-    int m = b_mat.empty() ? 0 : b_mat[0].size();
+    int m = countTotalExtraVariables(); // Use the new helper for 'm'
+
     MNA_A.assign(n + m, vector<double>(n + m, 0.0));
-    if (n > 0) for (int i = 0; i < n; i++) for (int j = 0; j < n; ++j) MNA_A[i][j] = g_mat[i][j];
-    if (m > 0 && n > 0) for (int i = 0; i < n; i++) for (int j = 0; j < m; ++j) MNA_A[i][n + j] = b_mat[i][j];
-    if (m > 0 && n > 0) for (int i = 0; i < m; i++) for (int j = 0; j < n; ++j) MNA_A[n + i][j] = c_mat[i][j];
-    if (m > 0) for (int i = 0; i < m; i++) for (int j = 0; j < m; ++j) MNA_A[n + i][n + j] = d_mat[i][j];
+    if (n > 0) {
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; ++j) {
+                MNA_A[i][j] = g_mat[i][j];
+            }
+        }
+    }
+    if (m > 0 && n > 0) {
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < m; ++j) {
+                MNA_A[i][n + j] = b_mat[i][j];
+            }
+        }
+    }
+    if (m > 0 && n > 0) {
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < n; ++j) {
+                MNA_A[n + i][j] = c_mat[i][j];
+            }
+        }
+    }
+    if (m > 0) {
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < m; ++j) {
+                MNA_A[n + i][n + j] = d_mat[i][j];
+            }
+        }
+    }
 }
 
 void Circuit::set_MNA_RHS() {
+    assignDiodeBranchIndices(); // Ensure indices are assigned before calculating RHS
     vector<double> j_vec = J();
     vector<double> e_vec = E();
     int n = j_vec.size();
-    int m = e_vec.size();
+    int m = countTotalExtraVariables(); // Use the new helper for 'm'
     MNA_RHS.assign(n + m, 0.0);
     for (int i = 0; i < n; i++) MNA_RHS[i] = j_vec[i];
     for (int i = 0; i < m; i++) MNA_RHS[n + i] = e_vec[i];
@@ -330,6 +371,8 @@ void Circuit::updateComponentStates() {
     for (auto &ind: inductors) {
         ind.update(delta_t);
     }
+    // Diodes do not have a 'prevCurrent' or 'prevVoltage' to update in this context.
+    // Their states (ON/OFF) are handled by the iterative DC analysis.
 }
 
 void Circuit::clearComponentHistory() {
@@ -339,6 +382,7 @@ void Circuit::clearComponentHistory() {
     for (auto &vs: voltageSources) {
         vs.clearHistory();
     }
+    // No history for diodes in this class; their state is reset in dcAnalysis
 }
 
 bool Circuit::isNodeNameGround(const string &node_name) const {
