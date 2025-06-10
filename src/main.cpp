@@ -35,6 +35,44 @@ int main() {
             while (iss >> cmd_part) {
                 cmds.push_back(cmd_part);
             }
+            if (cmds[0] == ".print") {//TRAN <Tstep> <Tstop>
+                string a_type = cmds[1];
+                if (a_type == "TRAN") {
+                    string Tstep = cmds[2];
+                    string Tstop = cmds[3];
+                    try {
+                        double t_step = stonum(Tstep);
+                        double t_stop = stonum(Tstop);
+                        transientAnalysis(circuit, t_step, t_stop);
+                        string name = cmds[4];
+                        cout << fixed << setprecision(4);
+                        if (name[0] == 'V') {/// V(name)
+                            Node *node = circuit.findNode(name.substr(2, name.size() - 4));
+                            if (node) {
+                                for (const auto &point: node->voltage_history) {
+                                    cout << "    Time: " << setw(8) << left << point.first
+                                         << " Voltage: " << point.second << " V" << endl;
+                                }
+                            }
+                        } else if (name[0] == 'I') {
+                            string n = name.substr(2, name.size() - 4);
+                            if (circuit.findCapacitor(n)) {
+                                Capacitor *comp = circuit.findCapacitor(n);
+                            } else if (circuit.findCurrentSource(n)) {
+                                CurrentSource *comp = circuit.findCurrentSource(n);
+                            } else if (circuit.findInductor(n)) {
+                                Inductor *comp = circuit.findInductor(n);
+                            } else if (circuit.findResistor(n)) {
+                                Resistor *comp = circuit.findResistor(n);
+                            } else if (circuit.findVoltageSource(n)) {
+                                VoltageSource *comp = circuit.findVoltageSource(n);
+                            }
+                        }
+                    }catch (const exception &e) {
+                        cerr << "Error: " << e.what() << endl;
+                    }
+                }
+            }
             if (!cmds.empty()) {
                 if (!command_handling(circuit, cmds, analysisCommands)) break;
             }
