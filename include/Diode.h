@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+using namespace std;
+
 enum DiodeType {
     NORMAL,
     ZENER
@@ -17,7 +19,7 @@ enum DiodeState {
 
 class Diode : public Component {
 public:
-    Diode(const std::string& name, Node* n1, Node* n2, DiodeType type, double vf, double vz = 0.0);
+    Diode(const string& name, Node* n1, Node* n2, DiodeType type, double vf, double vz = 0.0);
 
     DiodeType getDiodeType() const;
     double getForwardVoltage() const;
@@ -29,7 +31,10 @@ public:
     void setBranchIndex(int index);
     int getBranchIndex() const;
 
-    void addStamp(std::vector<std::vector<double>>& A, std::vector<double>& b, double t) override;
+    double getCurrent() override;
+    double getVoltage() override;
+
+    void addStamp(vector<vector<double>>& A, vector<double>& b, double t);
 
 private:
     DiodeType diodeType;

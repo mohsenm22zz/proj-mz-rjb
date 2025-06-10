@@ -162,6 +162,28 @@ vector<vector<double>> Circuit::G() {
             }
         }
     }
+
+    double ON_RESISTANCE = 1e-3;
+    double OFF_RESISTANCE = 1e12;
+
+    for (const auto &d: diodes) {
+        double diode_conductance = 0.0;
+        if (d.getState() == STATE_FORWARD_ON || d.getState() == STATE_REVERSE_ON) {
+            diode_conductance = 1.0 / ON_RESISTANCE;
+        } else { // STATE_OFF
+            diode_conductance = 1.0 / OFF_RESISTANCE;
+        }
+
+        int idx1 = getNodeMatrixIndex(d.node1);
+        int idx2 = getNodeMatrixIndex(d.node2);
+
+        if (idx1 != -1) g_matrix[idx1][idx1] += diode_conductance;
+        if (idx2 != -1) g_matrix[idx2][idx2] += diode_conductance;
+        if (idx1 != -1 && idx2 != -1) {
+            g_matrix[idx1][idx2] -= diode_conductance;
+            g_matrix[idx2][idx1] -= diode_conductance;
+        }
+    }
     return g_matrix;
 }
 
@@ -229,6 +251,25 @@ vector<double> Circuit::J() {
             int idx2 = getNodeMatrixIndex(cap.node2);
             if (idx1 != -1) j_vector[idx1] += cap_rhs_term;
             if (idx2 != -1) j_vector[idx2] -= cap_rhs_term;
+        }
+    }
+
+    // Diode contributions to J vector (current source part from voltage offset)
+    double ON_RESISTANCE = 1e-3; // Same as in G()
+
+    for (const auto &d: diodes) {
+        int idx1 = getNodeMatrixIndex(d.node1); // Anode
+        int idx2 = getNodeMatrixIndex(d.node2); // Cathode
+
+        if (d.getState() == STATE_FORWARD_ON) {
+            double current_from_offset = d.getForwardVoltage() / ON_RESISTANCE;
+            if (idx1 != -1) j_vector[idx1] -= current_from_offset; // Current flows *into* anode node (from source)
+            if (idx2 != -1) j_vector[idx2] += current_from_offset; // Current flows *out of* cathode node (to source)
+        } else if (d.getState() == STATE_REVERSE_ON) {
+            // For Zener, current flows from cathode to anode for breakdown
+            double current_from_offset = d.getZenerVoltage() / ON_RESISTANCE;
+            if (idx1 != -1) j_vector[idx1] += current_from_offset; // Current flows *out of* anode node (to source)
+            if (idx2 != -1) j_vector[idx2] -= current_from_offset; // Current flows *into* cathode node (from source)
         }
     }
     return j_vector;

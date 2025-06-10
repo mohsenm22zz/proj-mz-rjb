@@ -128,11 +128,12 @@ bool command_handling(Circuit& circuit, const vector<string>& cmds, vector<vecto
             }
             case 'D': {
                 if (circuit.findDiode(compName)) { cerr << "Error: diode " << compName << " already exists in the circuit" << endl; return true; }
-                Diode d;
-                d.name = compName;
-                d.node1 = circuit.findOrCreateNode(node1_name);
-                d.node2 = circuit.findOrCreateNode(node2_name);
+                // Assuming default to NORMAL diode with value as forward voltage
+                double forward_voltage = 0.0;
+                try { forward_voltage = stonum(value_str); } catch (const exception& e) { cerr << "Error: Invalid voltage for " << compName << endl; return true; }
+                if (forward_voltage < 0) { cerr << "Error: Forward voltage cannot be negative" << endl; return true; } // Diodes typically have positive forward voltage
 
+                Diode d (compName, circuit.findOrCreateNode(node1_name), circuit.findOrCreateNode(node2_name), NORMAL, forward_voltage);
                 circuit.diodes.push_back(d);
                 break;
             }
