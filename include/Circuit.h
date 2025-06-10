@@ -44,6 +44,7 @@ public:
     Node* findOrCreateNode(const string& name);
     Node* findNodeByNum(int num_to_find);
 
+
     Resistor* findResistor(const string& name);
     Capacitor* findCapacitor(const string& name);
     Inductor* findInductor(const string& name);
@@ -57,6 +58,8 @@ public:
     bool deleteDiode(const string& name);
     bool deleteVoltageSource(const string& name);
     bool deleteCurrentSource(const string& name);
+    bool renameNode(const string& oldName, const string& newName,
+                    bool& errorOldNameNotFound, bool& errorNewNameExists, bool& errorIsGround);
 
     vector<vector<double>> G();
     vector<vector<double>> B();

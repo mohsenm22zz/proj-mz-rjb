@@ -286,6 +286,28 @@ bool command_handling(Circuit &circuit, const vector<string> &cmds, vector<vecto
         } else {
             cerr << "Error: Syntax error" << endl;
         }
+    } else if (command == "rename") {
+        if (cmds.size() != 3) {
+            cerr << "Error: Syntax error. Usage: rename <old_node_name> <new_node_name>" << endl;
+            return true;
+        }
+        string oldName = cmds[1];
+        string newName = cmds[2];
+        bool oldNameNotFound = false;
+        bool newNameExists = false;
+        bool isGround = false;
+        bool success = circuit.renameNode(oldName, newName, oldNameNotFound, newNameExists, isGround);
+        if (success) {
+            cout << "Node '" << oldName << "' was successfully renamed to '" << newName << "'." << endl;
+        } else {
+            if (oldNameNotFound) {
+                cerr << "Error: Node '" << oldName << "' does not exist." << endl;
+            } else if (newNameExists) {
+                cerr << "Error: A node with the name '" << newName << "' already exists." << endl;
+            } else if (isGround) {
+                cerr << "Error: The ground node cannot be renamed." << endl;
+            }
+        }
     } else if (command == ".dc" || command == ".tran") {
         analysisCommands.push_back(cmds);
     } else {
@@ -298,7 +320,6 @@ void handleErrors(const Circuit &circuit) {
     if (circuit.groundNodeNames.empty() && !circuit.nodes.empty()) {
         cerr << "Error: No ground node detected in the circuit. Analysis may be unstable or incorrect." << endl;
     }
-    cout << "// Circuit integrity check complete." << endl;
 }
 
 Circuit readCircuitFromFile(const string &filename) {

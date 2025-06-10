@@ -411,3 +411,33 @@ int Circuit::countNonGroundNodes() const {
     }
     return count;
 }
+
+
+bool Circuit::renameNode(const string& oldName, const string& newName,
+                         bool& errorOldNameNotFound, bool& errorNewNameExists, bool& errorIsGround) {
+
+    // Reset all flags at the beginning
+    errorOldNameNotFound = false;
+    errorNewNameExists = false;
+    errorIsGround = false;
+
+    Node* nodeToRename = findNode(oldName);
+    if (!nodeToRename) {
+        errorOldNameNotFound = true;
+        return false; // Failure
+    }
+
+    if (nodeToRename->isGround) {
+        errorIsGround = true;
+        return false; // Failure
+    }
+
+    Node* existingNodeWithNewName = findNode(newName);
+    if (existingNodeWithNewName) {
+        errorNewNameExists = true;
+        return false; // Failure
+    }
+
+    nodeToRename->name = newName;
+    return true; // Success
+}

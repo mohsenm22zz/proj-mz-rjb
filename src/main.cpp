@@ -34,7 +34,6 @@ int main() {
             while (iss >> cmd_part) {
                 cmds.push_back(cmd_part);
             }
-
             if (!cmds.empty()) {
                 if (!command_handling(circuit, cmds, analysisCommands)) break;
             }
