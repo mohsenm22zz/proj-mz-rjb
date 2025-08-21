@@ -3,10 +3,10 @@
 #include <vector>
 #include <string>
 #include "Circuit.h"
+#include "export.h" // Include the export header
 
-using namespace std;
-
-bool command_handling(Circuit &circuit, const vector<string> &cmds, vector<vector<string>> &analysisCommands);
-bool handleErrors(const Circuit &circuit);
-Circuit readCircuitFromFile(const string &filename);
-void saveResultsToFile(const Circuit &circuit, const string &filename);
+// Add the export macro to the functions you want to call from C#
+CIRCUITSIMULATOR_API bool command_handling(Circuit &circuit, const std::vector<std::string> &cmds, std::vector<std::vector<std::string>> &analysisCommands);
+CIRCUITSIMULATOR_API bool handleErrors(const Circuit &circuit);
+CIRCUITSIMULATOR_API Circuit readCircuitFromFile(const std::string &filename);
+CIRCUITSIMULATOR_API void saveResultsToFile(const Circuit &circuit, const std::string &filename);

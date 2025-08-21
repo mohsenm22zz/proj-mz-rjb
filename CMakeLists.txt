@@ -1,12 +1,9 @@
 cmake_minimum_required(VERSION 3.29)
-project(proj1)
+project(CircuitSimulator)
 
 set(CMAKE_CXX_STANDARD 20)
 
-# The add_executable command should only list the .cpp source files that
-# need to be compiled into the final program.
-add_executable(proj1
-        src/main.cpp
+add_library(CircuitSimulator SHARED
         src/Node.cpp
         src/Component.cpp
         src/Resistor.cpp
@@ -21,7 +18,9 @@ add_executable(proj1
         src/CircuitIO.cpp
 )
 
-# This part correctly tells the compiler where to find the header files (#include <...>)
-target_include_directories(proj1 PUBLIC
+target_include_directories(CircuitSimulator PUBLIC
         ${CMAKE_SOURCE_DIR}/include
 )
+
+# Add this line to define the export symbol when building the DLL
+target_compile_definitions(CircuitSimulator PRIVATE CIRCUITSIMULATOR_EXPORTS)
