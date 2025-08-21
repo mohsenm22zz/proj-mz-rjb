@@ -1,26 +1,34 @@
-cmake_minimum_required(VERSION 3.29)
+cmake_minimum_required(VERSION 3.10)
 project(CircuitSimulator)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 
+# Create a shared library (DLL on Windows)
 add_library(CircuitSimulator SHARED
-        src/Node.cpp
-        src/Component.cpp
-        src/Resistor.cpp
-        src/Capacitor.cpp
-        src/Inductor.cpp
-        src/Diode.cpp
-        src/VoltageSource.cpp
-        src/CurrentSource.cpp
-        src/Circuit.cpp
-        src/LinearSolver.cpp
-        src/Analysis.cpp
-        src/CircuitIO.cpp
+    src/Analysis.cpp
+    src/Capacitor.cpp
+    src/Circuit.cpp
+    src/CircuitIO.cpp
+    src/Component.cpp
+    src/CurrentSource.cpp
+    src/Diode.cpp
+    src/Inductor.cpp
+    src/LinearSolver.cpp
+    src/Node.cpp
+    src/Resistor.cpp
+    src/VoltageSource.cpp
+    src/CircuitSimulatorInterface.cpp
 )
 
-target_include_directories(CircuitSimulator PUBLIC
-        ${CMAKE_SOURCE_DIR}/include
-)
-
-# Add this line to define the export symbol when building the DLL
+# Define the export symbol for the DLL
 target_compile_definitions(CircuitSimulator PRIVATE CIRCUITSIMULATOR_EXPORTS)
+
+# Include directories
+target_include_directories(CircuitSimulator PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+# For Windows, link required libraries
+if(WIN32)
+    target_link_libraries(CircuitSimulator)
+endif()
