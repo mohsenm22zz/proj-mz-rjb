@@ -1,0 +1,13 @@
+﻿# C# build output
+[Bb]in/
+[Oo]bj/
+
+# C++ CMake build output
+[Bb]uild/
+
+# Rider/JetBrains user-specific files
+.idea/
+
+# Compiled libraries and executables
+*.dll
+*.exe

@@ -1,0 +1,47 @@
+<Window x:Class="wpfUI.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:wpfUI"
+        mc:Ignorable="d"
+        Title="LTspice-like Circuit Simulator" Height="600" Width="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Menu -->
+        <Menu Grid.Row="0">
+            <MenuItem Header="_Simulation">
+                <MenuItem Header="_Run DC Analysis" Click="RunAnalysis_Click"/>
+                <MenuItem Header="_Run Transient Analysis" Click="RunTransientAnalysis_Click"/>
+            </MenuItem>
+        </Menu>
+
+        <!-- Main Content Area -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="200"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Toolbox -->
+            <GroupBox Grid.Column="0" Header="Components">
+                <StackPanel Margin="5">
+                    <Button Content="Resistor" Margin="0,0,0,5"/>
+                    <Button Content="Capacitor" Margin="0,0,0,5"/>
+                    <Button Content="Inductor" Margin="0,0,0,5"/>
+                    <Button Content="Voltage Source" Margin="0,0,0,5"/>
+                    <Button Content="Current Source" Margin="0,0,0,5"/>
+                </StackPanel>
+            </GroupBox>
+
+            <!-- Circuit Drawing Area -->
+            <Canvas Grid.Column="1" Background="LightGray">
+                <TextBlock Text="Circuit drawing area" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Canvas>
+        </Grid>
+    </Grid>
+</Window>
