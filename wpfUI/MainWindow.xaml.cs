@@ -121,5 +121,70 @@ namespace wpfUI
                 MessageBox.Show($"Error running transient analysis: {ex.Message}", "Error");
             }
         }
+        
+        // Context menu event handlers
+        private void ShowAddElementContextMenu(object sender, RoutedEventArgs e)
+        {
+            ContextMenu contextMenu = (ContextMenu)FindResource("AddElementContextMenu");
+            RadioButton radioButton = sender as RadioButton;
+            if (radioButton != null && contextMenu != null)
+            {
+                contextMenu.PlacementTarget = radioButton;
+                contextMenu.IsOpen = true;
+            }
+        }
+        
+        private void ShowRunContextMenu(object sender, RoutedEventArgs e)
+        {
+            ContextMenu contextMenu = (ContextMenu)FindResource("RunContextMenu");
+            RadioButton radioButton = sender as RadioButton;
+            if (radioButton != null && contextMenu != null)
+            {
+                contextMenu.PlacementTarget = radioButton;
+                contextMenu.IsOpen = true;
+            }
+        }
+        
+        // Add Element menu item handlers
+        private void AddResistor_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("Add Resistor functionality would be implemented here", "Add Element");
+        }
+        
+        private void AddCapacitor_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("Add Capacitor functionality would be implemented here", "Add Element");
+        }
+        
+        private void AddInductor_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("Add Inductor functionality would be implemented here", "Add Element");
+        }
+        
+        private void AddVoltageSource_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("Add Voltage Source functionality would be implemented here", "Add Element");
+        }
+        
+        private void AddCurrentSource_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("Add Current Source functionality would be implemented here", "Add Element");
+        }
+        
+        private void AddDiode_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("Add Diode functionality would be implemented here", "Add Element");
+        }
+        
+        // Run Analysis menu item handlers
+        private void RunDCAnalysis_Click(object sender, RoutedEventArgs e)
+        {
+            RunAnalysis_Click(sender, e); // Reuse existing method
+        }
+        
+        private void RunACAnalysis_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("AC Analysis functionality would be implemented here", "Run Analysis");
+        }
     }
 }

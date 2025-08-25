@@ -6,51 +6,44 @@
 
 using namespace std;
 
-vector<double> gaussianElimination(vector<vector<double>> A, vector<double> x) {
+vector<complex<double>> gaussianElimination(vector<vector<complex<double>>> A, vector<complex<double>> b) {
     int n = A.size();
-    /// مقادیر اولیه
-    vector<vector<double>> A_i = A;
-    vector<double> x_i = x;
-    /*
-    [A][v]=[x]
-    [A|x] -> مثلث پایین ۰
-    [A_new][v]=[x_new]
-     حل از پایین
-    */
-    /// max kardan ghotr asli (صفر نباید باشند)
+
     for (int i = 0; i < n; i++) {
-        int r = i;
+        // Find pivot
+        int max_row = i;
         for (int k = i + 1; k < n; k++) {
-            if (fabs(A_i[k][i]) > fabs(A_i[r][i])) {
-                r = k;
+            if (abs(A[k][i]) > abs(A[max_row][i])) {
+                max_row = k;
             }
         }
-        if (r != i) {
-            swap(A_i[i], A_i[r]);
-            swap(x_i[i], x_i[r]);/// مستقل نوشته می شود
-            //display_vec2D(A_i);
-        }
+        swap(A[i], A[max_row]);
+        swap(b[i], b[max_row]);
+
+        // Make elements below pivot zero
         for (int k = i + 1; k < n; k++) {
-            double f = A_i[k][i] / A_i[i][i];
+            complex<double> factor = A[k][i] / A[i][i];
             for (int j = i; j < n; j++) {
-                A_i[k][j] -= f * A_i[i][j];
+                A[k][j] -= factor * A[i][j];
             }
-            x_i[k] -= f * x_i[i];
-            //display_vec2D(A_i);
+            b[k] -= factor * b[i];
         }
     }
-    vector<double> v(n);
-    /// حل از آخر به اول
+
+    // Back substitution
+    vector<complex<double>> x(n);
     for (int i = n - 1; i >= 0; i--) {
-        v[i] = x_i[i];
+        x[i] = b[i];
         for (int j = i + 1; j < n; j++) {
-            v[i] -= A_i[i][j] * v[j];
+            x[i] -= A[i][j] * x[j];
         }
-        v[i] /= A_i[i][i];
+        x[i] /= A[i][i];
     }
-    return v;
+    return x;
 }
 
+
+// Other functions (display_vec2D, display_vec, test_solver) remain the same...
 void test_solver() {
     vector<vector<double>> a = {{1, 6, 3, 6},
                                 {2, 3, 5, 6},
@@ -77,4 +70,5 @@ void display_vec(vector<double> a) {
         cout << *it << endl;
     }
     cout << endl;
+}
 }

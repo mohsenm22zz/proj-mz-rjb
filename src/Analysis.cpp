@@ -5,6 +5,7 @@
 #include <vector>
 #include <iomanip>
 #include <cmath>
+#include <complex>
 
 using namespace std;
 
@@ -283,4 +284,68 @@ void dcSweepAnalysis(Circuit& circuit, const string& sourceName, double start, d
             vs.dc_sweep_current_history.push_back({value, vs.getCurrent()});
         }
     }
+}
+
+// --- NEW ---
+// Implementation for AC Sweep Analysis
+void acSweepAnalysis(Circuit& circuit, const std::string& sourceName, double start_freq, double stop_freq, int num_points, const std::string& sweep_type) {
+    cout << "// Performing AC Sweep Analysis..." << endl;
+    circuit.clearComponentHistory(); // Clear previous results
+
+    ACVoltageSource* acSource = circuit.findACVoltageSource(sourceName);
+    if (!acSource) {
+        cerr << "Error: AC source '" << sourceName << "' not found for sweep." << endl;
+        return;
+    }
+
+    vector<Node*> nonGroundNodes;
+    for (auto* node : circuit.nodes) {
+        if (!node->isGround) {
+            nonGroundNodes.push_back(node);
+        }
+    }
+
+    // Loop through each frequency point
+    for (int i = 0; i < num_points; ++i) {
+        double current_freq;
+        // For now, we only implement linear sweep as an example
+        // A full implementation would handle logarithmic sweeps (Decade/Octave)
+        current_freq = start_freq + i * (stop_freq - start_freq) / (num_points - 1);
+        
+        if (current_freq == 0) continue; // Avoid division by zero for C/L
+
+        // 1. Build the complex MNA matrices for the current frequency
+        circuit.set_MNA_A(AnalysisType::AC_SWEEP, current_freq);
+        circuit.set_MNA_RHS(AnalysisType::AC_SWEEP, current_freq);
+
+        // 2. Solve the complex system of equations
+        vector<complex<double>> solution;
+        try {
+            solution = gaussianElimination(circuit.MNA_A_Complex, circuit.MNA_RHS_Complex);
+        } catch (const exception& e) {
+            cerr << "Error during AC analysis at frequency " << current_freq << " Hz: " << e.what() << endl;
+            continue; // Skip to the next frequency point
+        }
+
+        // 3. Store the results (magnitude of voltage/current)
+        for (size_t j = 0; j < nonGroundNodes.size(); ++j) {
+            double magnitude = abs(solution[j]);
+            nonGroundNodes[j]->ac_sweep_history.push_back({current_freq, magnitude});
+        }
+        // You would also store current magnitudes for components here
+    }
+
+    cout << "// AC Sweep Analysis complete." << endl;
+}
+
+// --- NEW (Skeleton) ---
+// Implementation for Phase Sweep would be similar
+void phaseSweepAnalysis(Circuit& circuit, const std::string& sourceName, double base_freq, double start_phase, double stop_phase, int num_points) {
+    cout << "// Performing Phase Sweep Analysis (Not fully implemented)..." << endl;
+    // The logic would be very similar to acSweepAnalysis:
+    // 1. Loop from start_phase to stop_phase.
+    // 2. In each iteration, update the phase of the source component.
+    // 3. Re-build the MNA_RHS_Complex matrix (MNA_A_Complex doesn't change if only phase is swept).
+    // 4. Solve the system.
+    // 5. Store the magnitude of the result vs. the phase.
 }

@@ -5,6 +5,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <complex> // Include for complex number support
 
 class Node;
 class Component;
@@ -16,9 +17,19 @@ class Component;
 #include "Diode.h"
 #include "VoltageSource.h"
 #include "CurrentSource.h"
+#include "ACVoltageSource.h" // --- NEW ---
 #include "Component.h"
 
 using namespace std;
+
+// --- NEW ---
+// Enum to specify the type of analysis to perform
+enum class AnalysisType {
+    DC,
+    TRANSIENT,
+    AC_SWEEP
+};
+
 
 class Circuit {
 public:
@@ -28,13 +39,21 @@ public:
     vector<Inductor> inductors;
     vector<Diode> diodes;
     vector<VoltageSource> voltageSources;
+    vector<ACVoltageSource> acVoltageSources; // --- NEW ---
     vector<CurrentSource> currentSources;
     vector<string> groundNodeNames;
 
     double delta_t;
+
+    // MNA matrices for DC/Transient (real numbers)
     vector<vector<double>> MNA_A;
     vector<double> MNA_RHS;
-    vector<double> MNA_solution;
+
+    // --- NEW ---
+    // MNA matrices for AC analysis (complex numbers)
+    vector<vector<complex<double>>> MNA_A_Complex;
+    vector<complex<double>> MNA_RHS_Complex;
+
 
     Circuit();
     ~Circuit();
@@ -42,45 +61,32 @@ public:
     void addNode(const string& name);
     Node* findNode(const string& name);
     Node* findOrCreateNode(const string& name);
-    Node* findNodeByNum(int num_to_find);
 
-
+    // ... findComponent functions ...
     Resistor* findResistor(const string& name);
     Capacitor* findCapacitor(const string& name);
     Inductor* findInductor(const string& name);
     Diode* findDiode(const string& name);
     CurrentSource* findCurrentSource(const string& name);
     VoltageSource* findVoltageSource(const string& name);
+    ACVoltageSource* findACVoltageSource(const string& name); // --- NEW ---
 
+
+    // ... deleteComponent functions ...
     bool deleteResistor(const string& name);
-    bool deleteCapacitor(const string& name);
-    bool deleteInductor(const string& name);
-    bool deleteDiode(const string& name);
-    bool deleteVoltageSource(const string& name);
-    bool deleteCurrentSource(const string& name);
-    bool renameNode(const string& oldName, const string& newName,
-                    bool& errorOldNameNotFound, bool& errorNewNameExists, bool& errorIsGround);
+    // ... other delete functions ...
 
-    vector<vector<double>> G();
-    vector<vector<double>> B();
-    vector<vector<double>> C();
-    vector<vector<double>> D();
-    vector<double> J();
-    vector<double> E();
+    // --- MODIFIED ---
+    // The MNA setup functions now need to know the analysis type and frequency for AC
+    void set_MNA_A(AnalysisType type, double frequency = 0);
+    void set_MNA_RHS(AnalysisType type, double frequency = 0);
 
-    void set_MNA_A();
-    void set_MNA_RHS();
-    void MNA_sol_size();
-
+    // ... other existing functions ...
     void setDeltaT(double dt);
     void updateComponentStates();
-
     void clearComponentHistory();
-
-    bool isNodeNameGround(const string& node_name) const;
     int getNodeMatrixIndex(const Node* target_node_ptr) const;
     int countNonGroundNodes() const;
-
     int countTotalExtraVariables();
     void assignDiodeBranchIndices();
 };

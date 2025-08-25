@@ -10,4 +10,4 @@ void display_vec(vector<double> a);
 
 void test_solver();
 
-vector<double> gaussianElimination(vector<vector<double>> A, vector<double> b);
+vector<complex<double>> gaussianElimination(vector<vector<complex<double>>> A, vector<complex<double>> b);

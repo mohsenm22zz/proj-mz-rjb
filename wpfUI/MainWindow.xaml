@@ -5,42 +5,125 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:wpfUI"
         mc:Ignorable="d"
-        Title="LTspice-like Circuit Simulator" Height="600" Width="800">
+        Title="Analysis Tool" Height="720" Width="1280"
+        Background="#F0F0F0">
+
+    <!-- Window Resources for Styles and Templates -->
+    <Window.Resources>
+        <!-- Style for the left-hand side toolbar RadioButtons -->
+        <Style x:Key="ToolbarRadioButtonStyle" TargetType="RadioButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#333"/>
+            <Setter Property="Padding" Value="10,15"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <StackPanel HorizontalAlignment="Center">
+                                <!-- Placeholder for an Icon. Using a simple TextBlock here. -->
+                                <!-- For real icons, you might use an Image or a Path control. -->
+                                <TextBlock Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" 
+                                           FontFamily="Segoe MDL2 Assets" 
+                                           FontSize="24" 
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock Text="{TemplateBinding Content}" 
+                                           Margin="0,5,0,0"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <!-- Trigger for when the mouse is over the button -->
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#E0E0E0"/>
+                </Trigger>
+                <!-- Trigger for when the button is checked/selected -->
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Background" Value="#D0D8E8"/>
+                    <Setter Property="Foreground" Value="#003399"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Style for the bottom settings RadioButton -->
+        <Style x:Key="SettingsRadioButtonStyle" TargetType="RadioButton" BasedOn="{StaticResource ToolbarRadioButtonStyle}">
+             <Setter Property="VerticalAlignment" Value="Bottom"/>
+        </Style>
+        
+        <!-- Context Menus -->
+        <ContextMenu x:Key="AddElementContextMenu">
+            <MenuItem Header="Resistor" Click="AddResistor_Click"/>
+            <MenuItem Header="Capacitor" Click="AddCapacitor_Click"/>
+            <MenuItem Header="Inductor" Click="AddInductor_Click"/>
+            <Separator/>
+            <MenuItem Header="Voltage Source" Click="AddVoltageSource_Click"/>
+            <MenuItem Header="Current Source" Click="AddCurrentSource_Click"/>
+            <MenuItem Header="Diode" Click="AddDiode_Click"/>
+        </ContextMenu>
+        
+        <ContextMenu x:Key="RunContextMenu">
+            <MenuItem Header="DC Analysis" Click="RunDCAnalysis_Click"/>
+            <MenuItem Header="Transient Analysis" Click="RunTransientAnalysis_Click"/>
+            <MenuItem Header="AC Analysis" Click="RunACAnalysis_Click"/>
+        </ContextMenu>
+
+    </Window.Resources>
+
+    <!-- Main Grid Layout -->
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/> <!-- Row for the Menu -->
+            <RowDefinition Height="*"/>    <!-- Row for the main content -->
         </Grid.RowDefinitions>
 
-        <!-- Menu -->
-        <Menu Grid.Row="0">
-            <MenuItem Header="_Simulation">
-                <MenuItem Header="_Run DC Analysis" Click="RunAnalysis_Click"/>
-                <MenuItem Header="_Run Transient Analysis" Click="RunTransientAnalysis_Click"/>
-            </MenuItem>
+        <!-- Top Menu Bar -->
+        <Menu Grid.Row="0" Background="#505457" FontSize="14">
+            <MenuItem Header="_File" />
+            <MenuItem Header="_Library" />
+            <MenuItem Header="_Node Library" />
+            <MenuItem Header="_Simulation Settings" />
+            <MenuItem Header="_Scope" />
+            <!-- Right-aligned Menu Item -->
+            <MenuItem Header="_Run Analysis" HorizontalAlignment="Right" Background="#3e4544" FontWeight="SemiBold" Margin="0,0,10,0" Click="RunAnalysis_Click"/>
         </Menu>
 
-        <!-- Main Content Area -->
+        <!-- Main Content Area Grid -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="200"/>
-                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="120"/> <!-- Column for the Left Toolbar -->
+                <ColumnDefinition Width="*"/>     <!-- Column for the Content Canvas -->
             </Grid.ColumnDefinitions>
 
-            <!-- Toolbox -->
-            <GroupBox Grid.Column="0" Header="Components">
-                <StackPanel Margin="5">
-                    <Button Content="Resistor" Margin="0,0,0,5"/>
-                    <Button Content="Capacitor" Margin="0,0,0,5"/>
-                    <Button Content="Inductor" Margin="0,0,0,5"/>
-                    <Button Content="Voltage Source" Margin="0,0,0,5"/>
-                    <Button Content="Current Source" Margin="0,0,0,5"/>
-                </StackPanel>
-            </GroupBox>
+            <!-- Left Toolbar -->
+            <Border Grid.Column="0" Background="#505457" BorderBrush="#DDD" BorderThickness="0,0,0,0">
+                 <Grid>
+                    <StackPanel >
+                        <!-- Using RadioButtons to ensure only one tool is selected at a time -->
+                        <!-- The 'Tag' property holds the icon character from the Segoe MDL2 Assets font -->
+                        <RadioButton GroupName="Tools" Content="Add element" Tag="&#xE710;" Style="{StaticResource ToolbarRadioButtonStyle}" Click="ShowAddElementContextMenu"/>
+                        <RadioButton GroupName="Tools" Content="Zoom" Tag="&#xE71E;" Style="{StaticResource ToolbarRadioButtonStyle}"/>
+                        <RadioButton GroupName="Tools" Content="Probe" Tag="&#xE7F8;" Style="{StaticResource ToolbarRadioButtonStyle}"/>
+                        <RadioButton GroupName="Tools" Content="Save" Tag="&#xE74E;" Style="{StaticResource ToolbarRadioButtonStyle}"/>
+                        <RadioButton GroupName="Tools" Content="Run" Tag="&#xF5B0;" Style="{StaticResource ToolbarRadioButtonStyle}" Click="ShowRunContextMenu"/>
+                    </StackPanel>
+                    
+                    <RadioButton GroupName="Tools" Content="Settings" Tag="&#xE713;" Style="{StaticResource SettingsRadioButtonStyle}"/>
+                 </Grid>
+            </Border>
 
-            <!-- Circuit Drawing Area -->
-            <Canvas Grid.Column="1" Background="LightGray">
-                <TextBlock Text="Circuit drawing area" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <!-- Main Content Canvas Area -->
+            <Canvas Grid.Column="1" Background="#333333" x:Name="DrawingCanvas">
             </Canvas>
         </Grid>
     </Grid>
