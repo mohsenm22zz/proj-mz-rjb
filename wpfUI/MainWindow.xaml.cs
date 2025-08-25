@@ -1,14 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace wpfUI
 {
@@ -18,173 +12,95 @@ namespace wpfUI
     public partial class MainWindow : Window
     {
         private readonly CircuitSimulatorService _simulatorService;
+        // Dictionaries to keep track of component counts for naming
+        private readonly Dictionary<string, int> _componentCounts = new Dictionary<string, int>
+        {
+            {"R", 1}, {"C", 1}, {"L", 1}, {"D", 1}, {"V", 1}, {"ACV", 1}, {"I", 1}
+        };
+
 
         public MainWindow()
         {
             InitializeComponent();
             _simulatorService = new CircuitSimulatorService();
-            
-            // Create a simple circuit for testing
-            CreateSampleCircuit();
         }
 
-        /// <summary>
-        /// Creates a sample circuit for testing
-        /// </summary>
-        private void CreateSampleCircuit()
+        private void AddComponent_Click(object sender, RoutedEventArgs e)
         {
-            // Create nodes
-            _simulatorService.AddNode("N1");
-            _simulatorService.AddNode("N2");
-            _simulatorService.AddNode("GND");
-            
-            // Set ground
-            _simulatorService.SetGroundNode("GND");
-            
-            // Add components
-            _simulatorService.AddVoltageSource("V1", "N1", "GND", 5.0);
-            _simulatorService.AddResistor("R1", "N1", "N2", 1000.0);
-            _simulatorService.AddResistor("R2", "N2", "GND", 2000.0);
+            if (sender is Button button && button.Tag is string type)
+            {
+                // Get the current count for this component type
+                int count = _componentCounts[type];
+
+                // Create a new component control
+                var componentControl = new ComponentControl
+                {
+                    ComponentName = $"{type}{count}",
+                    Width = 100,
+                    Height = 40
+                };
+
+                // Position it on the canvas
+                Canvas.SetLeft(componentControl, 100);
+                Canvas.SetTop(componentControl, 100);
+
+                // Add it to the canvas
+                SchematicCanvas.Children.Add(componentControl);
+
+                // Increment the count for the next component of this type
+                _componentCounts[type]++;
+            }
+        }
+
+        private void PlaceComponent_Click(object sender, RoutedEventArgs e)
+        {
+            // This would open a more complex component library window.
+            // For now, we can just show a message.
+            MessageBox.Show("Component Library window would open here.", "Place Component");
+        }
+
+        private void EditSimulationCmd_Click(object sender, RoutedEventArgs e)
+        {
+            // This is where you would open a new dialog window to get simulation parameters
+            // (e.g., for AC Sweep: start freq, stop freq, etc.)
+            MessageBox.Show("Simulation Settings dialog would open here.", "Edit Simulation Command");
         }
 
         /// <summary>
-        /// Handle "Run Analysis" menu item click event
+        /// Handle "Run" menu item click event. This can be a central point for all analyses.
         /// </summary>
         private void RunAnalysis_Click(object sender, RoutedEventArgs e)
         {
+            // In a real application, you would check which simulation type is currently selected.
+            // For this example, let's just run a simple DC analysis on a hardcoded circuit.
             try
             {
-                // Run DC analysis
-                bool success = _simulatorService.RunDCAnalysis();
-                
-                if (success)
+                // For demonstration, we create a simple circuit here.
+                // In the final app, this would be built from the components on the canvas.
+                using (var sim = new CircuitSimulatorService())
                 {
-                    // Get node voltages
-                    var nodeNames = _simulatorService.GetNodeNames();
-                    StringBuilder result = new StringBuilder();
-                    result.AppendLine("Analysis Results:");
-                    
-                    foreach (var nodeName in nodeNames)
+                    sim.AddNode("N1");
+                    sim.AddNode("GND");
+                    sim.SetGroundNode("GND");
+                    sim.AddVoltageSource("V1", "N1", "GND", 5.0);
+                    sim.AddResistor("R1", "N1", "GND", 1000.0);
+
+                    bool success = sim.RunDCAnalysis();
+                    if (success)
                     {
-                        double voltage = _simulatorService.GetNodeVoltage(nodeName);
-                        result.AppendLine($"{nodeName}: {voltage:F3} V");
+                        double voltage = sim.GetNodeVoltage("N1");
+                        MessageBox.Show($"DC Analysis Complete.\n\nVoltage at N1: {voltage:F3} V", "Analysis Results");
                     }
-                    
-                    MessageBox.Show(result.ToString(), "Analysis Results");
-                }
-                else
-                {
-                    MessageBox.Show("Analysis failed.", "Error");
+                    else
+                    {
+                        MessageBox.Show("Analysis failed.", "Error");
+                    }
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error running analysis: {ex.Message}", "Error");
             }
-        }
-
-        /// <summary>
-        /// Handle "Transient Analysis" menu item click event
-        /// </summary>
-        private void RunTransientAnalysis_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                // Run transient analysis (1ms step, 10ms stop)
-                bool success = _simulatorService.RunTransientAnalysis(0.001, 0.01);
-                
-                if (success)
-                {
-                    // Get voltage history for a node
-                    var history = _simulatorService.GetNodeVoltageHistory("N2");
-                    double[] timePoints = history.Item1;
-                    double[] voltages = history.Item2;
-                    
-                    StringBuilder result = new StringBuilder();
-                    result.AppendLine("Transient Analysis Results:");
-                    result.AppendLine("Time (s)\tVoltage (V)");
-                    
-                    for (int i = 0; i < Math.Min(timePoints.Length, 10); i++)
-                    {
-                        result.AppendLine($"{timePoints[i]:F4}\t{voltages[i]:F4}");
-                    }
-                    
-                    MessageBox.Show(result.ToString(), "Transient Analysis Results");
-                }
-                else
-                {
-                    MessageBox.Show("Transient analysis failed.", "Error");
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error running transient analysis: {ex.Message}", "Error");
-            }
-        }
-        
-        // Context menu event handlers
-        private void ShowAddElementContextMenu(object sender, RoutedEventArgs e)
-        {
-            ContextMenu contextMenu = (ContextMenu)FindResource("AddElementContextMenu");
-            RadioButton radioButton = sender as RadioButton;
-            if (radioButton != null && contextMenu != null)
-            {
-                contextMenu.PlacementTarget = radioButton;
-                contextMenu.IsOpen = true;
-            }
-        }
-        
-        private void ShowRunContextMenu(object sender, RoutedEventArgs e)
-        {
-            ContextMenu contextMenu = (ContextMenu)FindResource("RunContextMenu");
-            RadioButton radioButton = sender as RadioButton;
-            if (radioButton != null && contextMenu != null)
-            {
-                contextMenu.PlacementTarget = radioButton;
-                contextMenu.IsOpen = true;
-            }
-        }
-        
-        // Add Element menu item handlers
-        private void AddResistor_Click(object sender, RoutedEventArgs e)
-        {
-            MessageBox.Show("Add Resistor functionality would be implemented here", "Add Element");
-        }
-        
-        private void AddCapacitor_Click(object sender, RoutedEventArgs e)
-        {
-            MessageBox.Show("Add Capacitor functionality would be implemented here", "Add Element");
-        }
-        
-        private void AddInductor_Click(object sender, RoutedEventArgs e)
-        {
-            MessageBox.Show("Add Inductor functionality would be implemented here", "Add Element");
-        }
-        
-        private void AddVoltageSource_Click(object sender, RoutedEventArgs e)
-        {
-            MessageBox.Show("Add Voltage Source functionality would be implemented here", "Add Element");
-        }
-        
-        private void AddCurrentSource_Click(object sender, RoutedEventArgs e)
-        {
-            MessageBox.Show("Add Current Source functionality would be implemented here", "Add Element");
-        }
-        
-        private void AddDiode_Click(object sender, RoutedEventArgs e)
-        {
-            MessageBox.Show("Add Diode functionality would be implemented here", "Add Element");
-        }
-        
-        // Run Analysis menu item handlers
-        private void RunDCAnalysis_Click(object sender, RoutedEventArgs e)
-        {
-            RunAnalysis_Click(sender, e); // Reuse existing method
-        }
-        
-        private void RunACAnalysis_Click(object sender, RoutedEventArgs e)
-        {
-            MessageBox.Show("AC Analysis functionality would be implemented here", "Run Analysis");
         }
     }
 }
