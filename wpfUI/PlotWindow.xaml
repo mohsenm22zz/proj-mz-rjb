@@ -8,7 +8,6 @@
         Title="Scope" Height="500" Width="800"
         Background="#2D2D30">
     <Grid>
-        <!--  MODIFIED: Replaced Border with ScottPlot control  -->
         <ScottPlot:WpfPlot x:Name="WpfPlot1"/>
     </Grid>
 </Window>

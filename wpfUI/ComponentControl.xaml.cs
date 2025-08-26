@@ -16,9 +16,8 @@ namespace wpfUI
             set { SetValue(ComponentNameProperty, value); }
         }
 
-        // --- NEW: Properties to store component values ---
-        public double Value { get; set; } = 1; // Default value
-        public double AcPhase { get; set; } = 0; // Default for AC sources
+        public double Value { get; set; } = 1;
+        public double AcPhase { get; set; } = 0;
 
         private static void OnComponentNameChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
@@ -26,7 +25,6 @@ namespace wpfUI
             if (control != null)
             {
                 control.ComponentNameLabel.Text = e.NewValue.ToString();
-                // --- NEW: Set default values based on component type ---
                 string name = e.NewValue.ToString();
                 if (name.StartsWith("R")) control.Value = 1000;
                 if (name.StartsWith("V")) control.Value = 5;
@@ -41,11 +39,9 @@ namespace wpfUI
         public ComponentControl()
         {
             InitializeComponent();
-            // --- NEW: Add handler for right-click event ---
             this.MouseRightButtonUp += Component_MouseRightButtonUp;
         }
 
-        // --- NEW: Event handler to show the context menu ---
         private void Component_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
         {
             ContextMenu contextMenu = new ContextMenu();
@@ -55,7 +51,6 @@ namespace wpfUI
             contextMenu.IsOpen = true;
         }
 
-        // --- NEW: Click handler to open the value setting window ---
         private void SetValue_Click(object sender, RoutedEventArgs e)
         {
             var valueWindow = new ComponentValueWindow(this.ComponentName, this.Value, this.AcPhase);
@@ -64,7 +59,6 @@ namespace wpfUI
             {
                 this.Value = valueWindow.ComponentValue;
                 this.AcPhase = valueWindow.AcPhase;
-                // You could add a visual indicator of the value on the component here
             }
         }
 

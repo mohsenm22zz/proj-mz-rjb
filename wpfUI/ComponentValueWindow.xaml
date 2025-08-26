@@ -4,7 +4,7 @@
         Title="Set Component Value" SizeToContent="WidthAndHeight" WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
     <Grid Margin="15">
         <StackPanel>
-            <!-- Generic Value Panel -->
+            <!-- Value Panel -->
             <StackPanel x:Name="GenericPanel">
                 <TextBlock Text="Value:"/>
                 <TextBox x:Name="ValueTextBox" MinWidth="200" Margin="0,5,0,15"/>

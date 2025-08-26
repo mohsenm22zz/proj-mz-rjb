@@ -58,15 +58,13 @@ namespace wpfUI
 
             double deltaX = System.Math.Abs(newPoint.X - lastPoint.X);
             double deltaY = System.Math.Abs(newPoint.Y - lastPoint.Y);
-
-            // Add an intermediate point to enforce right angles
             if (_polyLineSegment.Points.Count > 0)
             {
-                 if (deltaX > deltaY) // Prefer horizontal segment
+                 if (deltaX > deltaY)
                 {
                     _polyLineSegment.Points.Add(new Point(newPoint.X, lastPoint.Y));
                 }
-                else // Prefer vertical segment
+                else
                 {
                     _polyLineSegment.Points.Add(new Point(lastPoint.X, newPoint.Y));
                 }
@@ -76,7 +74,6 @@ namespace wpfUI
 
         public void UpdatePreview(Point previewPoint)
         {
-            // Remove the last point if it's a preview point
             if (_polyLineSegment.Points.Count > 1 && _polyLineSegment.Points[_polyLineSegment.Points.Count - 2] == _polyLineSegment.Points[_polyLineSegment.Points.Count - 1])
             {
                  _polyLineSegment.Points.RemoveAt(_polyLineSegment.Points.Count - 1);
@@ -87,16 +84,15 @@ namespace wpfUI
             double deltaY = System.Math.Abs(previewPoint.Y - lastPoint.Y);
 
             Point elbowPoint;
-            if (deltaX > deltaY) // Horizontal segment first
+            if (deltaX > deltaY)
             {
                 elbowPoint = new Point(previewPoint.X, lastPoint.Y);
             }
-            else // Vertical segment first
+            else
             {
                 elbowPoint = new Point(lastPoint.X, previewPoint.Y);
             }
 
-            // Temporarily add the elbow and the final preview point
             if (_polyLineSegment.Points.Count > 0)
             {
                 _polyLineSegment.Points[_polyLineSegment.Points.Count - 1] = elbowPoint;

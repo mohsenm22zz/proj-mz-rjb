@@ -7,18 +7,14 @@
              d:DesignHeight="40" d:DesignWidth="100"
              Cursor="SizeAll">
     <Grid>
-        <!-- Main body of the component -->
         <Rectangle Stroke="#999999" Fill="#444444" StrokeThickness="1" RadiusX="2" RadiusY="2"/>
 
-        <!-- Component Name Label -->
         <TextBlock x:Name="ComponentNameLabel" Text="R1" Foreground="White" 
                    HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
 
-        <!-- Left Connection Point -->
         <Rectangle x:Name="LeftConnector" Fill="#CCCCCC" Width="8" Height="8" 
                    HorizontalAlignment="Left" VerticalAlignment="Center" Margin="-4,0,0,0"/>
 
-        <!-- Right Connection Point -->
         <Rectangle x:Name="RightConnector" Fill="#CCCCCC" Width="8" Height="8" 
                    HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,-4,0"/>
     </Grid>

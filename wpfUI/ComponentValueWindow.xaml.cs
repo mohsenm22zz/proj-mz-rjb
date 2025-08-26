@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 
 namespace wpfUI
 {
@@ -11,7 +11,6 @@ namespace wpfUI
         {
             InitializeComponent();
 
-            // Show specific panels based on component type
             if (componentName.StartsWith("ACV"))
             {
                 GenericPanel.Visibility = Visibility.Collapsed;

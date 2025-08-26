@@ -66,21 +66,18 @@ namespace wpfUI
                     AcPhase = child.AcPhase
                 };
 
-                // --- MODIFIED: Enforce polarity for sources ---
                 string type = new string(info.Name.TakeWhile(char.IsLetter).ToArray());
                 if (type == "V" || type == "ACV")
                 {
-                    // Positive terminal is on the right
                     info.Node1 = rightNode; 
                     info.Node2 = leftNode;
                 }
                 else if (type == "I")
                 {
-                    // Current flows from left to right
                     info.Node1 = leftNode;
                     info.Node2 = rightNode;
                 }
-                else // For non-polar components like Resistors
+                else
                 {
                     info.Node1 = leftNode;
                     info.Node2 = rightNode;

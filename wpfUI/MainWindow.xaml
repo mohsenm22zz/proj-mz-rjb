@@ -8,7 +8,6 @@
         Title="Circuit Simulator" Height="720" Width="1280"
         Background="#2D2D30">
     <Window.Resources>
-        <!-- NEW: Style for MenuItems to make text darker-->
         <Style TargetType="MenuItem">
             <Setter Property="Foreground" Value="#CCCCCC"/>
         </Style>
@@ -19,7 +18,6 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Menu Bar -->
         <Menu Grid.Row="0" Background="#3D3D40" Foreground="White">
             <MenuItem Header="_File">
                 <MenuItem Header="_New Project"/>
@@ -34,6 +32,8 @@
                 <MenuItem Header="_Component..." Click="PlaceComponent_Click"/>
                 <MenuItem Header="_Node" Click="PlaceNode_Click"/>
                 <MenuItem x:Name="WireMenuItem" Header="_Wire" IsCheckable="True" Click="PlaceWire_Click"/>
+                <!-- --- NEW: Probe Menu Item --- -->
+                <MenuItem x:Name="ProbeMenuItem" Header="_Probe" IsCheckable="True" Click="PlaceProbe_Click"/>
                 <MenuItem Header="_Net Label"/>
             </MenuItem>
             <MenuItem Header="_Simulate">
@@ -68,7 +68,6 @@
 
             <!-- Circuit Drawing Area -->
             <Canvas x:Name="SchematicCanvas" Grid.Column="1" Background="#252526" ClipToBounds="True">
-                <!-- Components will be added here dynamically -->
             </Canvas>
         </Grid>
     </Grid>

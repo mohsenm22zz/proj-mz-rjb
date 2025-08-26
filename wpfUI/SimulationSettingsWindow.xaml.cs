@@ -5,7 +5,6 @@ namespace wpfUI
 {
     public partial class SimulationSettingsWindow : Window
     {
-        // --- NEW: Public property to hold the collected parameters ---
         public SimulationParameters Parameters { get; private set; }
 
         public SimulationSettingsWindow()
@@ -16,10 +15,8 @@ namespace wpfUI
 
         private void OkButton_Click(object sender, RoutedEventArgs e)
         {
-            // --- NEW: Logic to parse and save the settings from the UI ---
             try
             {
-                // Determine which tab is selected
                 if (TransientTab.IsSelected)
                 {
                     Parameters.CurrentAnalysis = SimulationParameters.AnalysisType.Transient;

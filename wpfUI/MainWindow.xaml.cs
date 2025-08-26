@@ -17,14 +17,20 @@ namespace wpfUI
         };
 
         private bool _isWiringMode = false;
+        private bool _isProbeMode = false;
         private bool _isCircuitLocked = false;
         private Wire _currentWire = null;
         private SimulationParameters _simulationParameters;
+        private PlotWindow _plotWindow;
+        private CircuitSimulatorService _activeSimulator;
+        private Dictionary<Point, string> _lastNetlistNodeMap;
+        private Probe _voltageProbe;
+
 
         public MainWindow()
         {
             InitializeComponent();
-            _simulationParameters = new SimulationParameters { CurrentAnalysis = SimulationParameters.AnalysisType.Transient, StopTime = 1, MaxTimestep = 0.001 }; // Default
+            _simulationParameters = new SimulationParameters { CurrentAnalysis = SimulationParameters.AnalysisType.Transient, StopTime = 1, MaxTimestep = 0.001 };
             this.Loaded += (s, e) => DrawGrid();
             this.KeyDown += MainWindow_KeyDown;
         }
@@ -33,7 +39,8 @@ namespace wpfUI
         {
             if (e.Key == Key.Escape)
             {
-                ExitWiringMode();
+                if (_isWiringMode) ExitWiringMode();
+                if (_isProbeMode) ExitProbeMode();
                 DeselectAll();
             }
         }
@@ -42,21 +49,17 @@ namespace wpfUI
         {
             double gridSize = 20.0;
             var existingChildren = SchematicCanvas.Children.OfType<UIElement>().ToList();
-
             SchematicCanvas.Children.Clear();
-
             for (double x = 0; x < SchematicCanvas.ActualWidth; x += gridSize)
             {
                 var line = new Line { X1 = x, Y1 = 0, X2 = x, Y2 = SchematicCanvas.ActualHeight, Stroke = new SolidColorBrush(Color.FromArgb(50, 80, 80, 80)), StrokeThickness = 1 };
                 SchematicCanvas.Children.Add(line);
             }
-
             for (double y = 0; y < SchematicCanvas.ActualHeight; y += gridSize)
             {
                 var line = new Line { X1 = 0, Y1 = y, X2 = SchematicCanvas.ActualWidth, Y2 = y, Stroke = new SolidColorBrush(Color.FromArgb(50, 80, 80, 80)), StrokeThickness = 1 };
                 SchematicCanvas.Children.Add(line);
             }
-
             foreach (var child in existingChildren.Where(c => !(c is Line && ((Line)c).StrokeThickness == 1)))
             {
                 SchematicCanvas.Children.Add(child);
@@ -70,16 +73,10 @@ namespace wpfUI
                 MessageBox.Show("Cannot add new components while circuit is wired.", "Circuit Locked");
                 return;
             }
-
             if (sender is Button button && button.Tag is string type)
             {
                 int count = _componentCounts[type];
-                var componentControl = new ComponentControl
-                {
-                    ComponentName = $"{type}{count}",
-                    Width = 100,
-                    Height = 40
-                };
+                var componentControl = new ComponentControl { ComponentName = $"{type}{count}", Width = 100, Height = 40 };
                 Canvas.SetLeft(componentControl, 100);
                 Canvas.SetTop(componentControl, 100);
                 SchematicCanvas.Children.Add(componentControl);
@@ -107,6 +104,7 @@ namespace wpfUI
 
         private void EnterWiringMode()
         {
+            if (_isProbeMode) ExitProbeMode();
             _isWiringMode = true;
             _isCircuitLocked = true;
             WireMenuItem.IsChecked = true;
@@ -141,21 +139,8 @@ namespace wpfUI
         {
             if (!_isWiringMode) return;
             Point clickPoint = e.GetPosition(SchematicCanvas);
-            
-            // --- MODIFIED: Prioritize snapping to a connection point over snapping to the grid ---
             Point? connectionPoint = FindNearestConnectionPoint(clickPoint);
-            Point snappedPoint;
-
-            if (connectionPoint.HasValue)
-            {
-                snappedPoint = connectionPoint.Value;
-            }
-            else
-            {
-                double gridSize = 20.0;
-                snappedPoint = new Point(Math.Round(clickPoint.X / gridSize) * gridSize, Math.Round(clickPoint.Y / gridSize) * gridSize);
-            }
-
+            Point snappedPoint = connectionPoint ?? new Point(Math.Round(clickPoint.X / 20.0) * 20.0, Math.Round(clickPoint.Y / 20.0) * 20.0);
 
             if (_currentWire == null)
             {
@@ -168,7 +153,6 @@ namespace wpfUI
                 _currentWire.AddPoint(snappedPoint);
             }
 
-            // If we clicked on a connection point to end the wire, exit wiring mode.
             if (connectionPoint.HasValue && _currentWire.StartPoint != snappedPoint)
             {
                 ExitWiringMode();
@@ -180,11 +164,75 @@ namespace wpfUI
             if (_isWiringMode && _currentWire != null)
             {
                 Point currentPoint = e.GetPosition(SchematicCanvas);
-                double gridSize = 20.0;
-                Point snappedPoint = new Point(Math.Round(currentPoint.X / gridSize) * gridSize, Math.Round(currentPoint.Y / gridSize) * gridSize);
+                Point snappedPoint = new Point(Math.Round(currentPoint.X / 20.0) * 20.0, Math.Round(currentPoint.Y / 20.0) * 20.0);
                 _currentWire.UpdatePreview(snappedPoint);
             }
         }
+
+        // --- NEW: Probe Mode Logic ---
+        private void PlaceProbe_Click(object sender, RoutedEventArgs e)
+        {
+            if (_activeSimulator == null)
+            {
+                MessageBox.Show("Please run a simulation first before using the probe.", "No Simulation Data");
+                ProbeMenuItem.IsChecked = false;
+                return;
+            }
+            if (!_isProbeMode) EnterProbeMode();
+            else ExitProbeMode();
+        }
+
+        private void EnterProbeMode()
+        {
+            if (_isWiringMode) ExitWiringMode();
+            _isProbeMode = true;
+            ProbeMenuItem.IsChecked = true;
+            SchematicCanvas.Cursor = Cursors.None; // Hide default cursor
+            _voltageProbe = new Probe();
+            SchematicCanvas.Children.Add(_voltageProbe);
+            Panel.SetZIndex(_voltageProbe, 100);
+            SchematicCanvas.MouseMove += Canvas_Probe_MouseMove;
+            SchematicCanvas.MouseLeftButtonDown += Canvas_Probe_MouseDown;
+        }
+
+        private void ExitProbeMode()
+        {
+            _isProbeMode = false;
+            ProbeMenuItem.IsChecked = false;
+            SchematicCanvas.Cursor = Cursors.Arrow;
+            if (_voltageProbe != null)
+            {
+                SchematicCanvas.Children.Remove(_voltageProbe);
+                _voltageProbe = null;
+            }
+            SchematicCanvas.MouseMove -= Canvas_Probe_MouseMove;
+            SchematicCanvas.MouseLeftButtonDown -= Canvas_Probe_MouseDown;
+        }
+
+        private void Canvas_Probe_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (_isProbeMode && _voltageProbe != null)
+            {
+                Point mousePos = e.GetPosition(SchematicCanvas);
+                Canvas.SetLeft(_voltageProbe, mousePos.X - _voltageProbe.Width / 2);
+                Canvas.SetTop(_voltageProbe, mousePos.Y - _voltageProbe.Height / 2);
+            }
+        }
+
+        private void Canvas_Probe_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (!_isProbeMode || _plotWindow == null || !_plotWindow.IsLoaded) return;
+
+            Point clickPoint = e.GetPosition(SchematicCanvas);
+            Point? connectionPoint = FindNearestConnectionPoint(clickPoint);
+
+            if (connectionPoint.HasValue && _lastNetlistNodeMap.ContainsKey(connectionPoint.Value))
+            {
+                string nodeName = _lastNetlistNodeMap[connectionPoint.Value];
+                _plotWindow.AddNodeData(_activeSimulator, nodeName);
+            }
+        }
+
 
         private void DeselectAll()
         {
@@ -231,73 +279,62 @@ namespace wpfUI
 
         private void RunAnalysis_Click(object sender, RoutedEventArgs e)
         {
-            List<string> netlistCommands = NetlistGenerator.Generate(SchematicCanvas);
+            var netlistResult = NetlistGenerator.Generate(SchematicCanvas);
+            List<string> netlistCommands = netlistResult.Item1;
+            _lastNetlistNodeMap = netlistResult.Item2; // Save the node map for the probe
+
             if (!netlistCommands.Any())
             {
                 MessageBox.Show("The circuit is empty.", "Empty Circuit");
                 return;
             }
 
-            using (var simulator = new CircuitSimulatorService())
+            _activeSimulator?.Dispose(); // Dispose previous simulator instance if it exists
+            _activeSimulator = new CircuitSimulatorService();
+
+            try
             {
-                try
+                foreach (var command in netlistCommands)
                 {
-                    foreach (var command in netlistCommands)
-                    {
-                        var parts = command.Split(' ');
-                        string type = parts[0];
-                        if (type == "GND")
-                        {
-                            simulator.SetGroundNode(parts[1]);
-                        }
-                        else if (type == "R")
-                        {
-                            simulator.AddResistor(parts[1], parts[2], parts[3], double.Parse(parts[4]));
-                        }
-                        else if (type == "V")
-                        {
-                            simulator.AddVoltageSource(parts[1], parts[2], parts[3], double.Parse(parts[4]));
-                        }
-                        else if (type == "ACV")
-                        {
-                            simulator.AddACVoltageSource(parts[1], parts[2], parts[3], double.Parse(parts[4]), double.Parse(parts[5]));
-                        }
-                    }
-
-                    bool success = false;
-                    switch (_simulationParameters.CurrentAnalysis)
-                    {
-                        case SimulationParameters.AnalysisType.Transient:
-                            success = simulator.RunTransientAnalysis(_simulationParameters.StopTime, _simulationParameters.MaxTimestep);
-                            break;
-                        case SimulationParameters.AnalysisType.ACSweep:
-                            string acSource = netlistCommands.FirstOrDefault(c => c.StartsWith("ACV"))?.Split(' ')[1] ?? "";
-                            if (string.IsNullOrEmpty(acSource))
-                            {
-                                MessageBox.Show("AC Sweep requires an ACV component in the circuit.", "Simulation Error");
-                                return;
-                            }
-                            success = simulator.RunACAnalysis(acSource, _simulationParameters.StartFrequency, _simulationParameters.StopFrequency, _simulationParameters.NumberOfPoints, _simulationParameters.SweepType);
-                            break;
-                    }
-
-                    if (success)
-                    {
-                        var plotWindow = new PlotWindow();
-                        plotWindow.Owner = this;
-                        var nodeNames = simulator.GetNodeNames();
-                        plotWindow.LoadData(simulator, nodeNames);
-                        plotWindow.Show();
-                    }
-                    else
-                    {
-                        MessageBox.Show("The simulation failed to run.", "Simulation Error");
-                    }
+                    var parts = command.Split(' ');
+                    string type = parts[0];
+                    if (type == "GND") _activeSimulator.SetGroundNode(parts[1]);
+                    else if (type == "R") _activeSimulator.AddResistor(parts[1], parts[2], parts[3], double.Parse(parts[4]));
+                    else if (type == "V") _activeSimulator.AddVoltageSource(parts[1], parts[2], parts[3], double.Parse(parts[4]));
+                    else if (type == "ACV") _activeSimulator.AddACVoltageSource(parts[1], parts[2], parts[3], double.Parse(parts[4]), double.Parse(parts[5]));
                 }
-                catch (Exception ex)
+
+                bool success = false;
+                switch (_simulationParameters.CurrentAnalysis)
                 {
-                    MessageBox.Show($"An error occurred during simulation setup: {ex.Message}", "Error");
+                    case SimulationParameters.AnalysisType.Transient:
+                        success = _activeSimulator.RunTransientAnalysis(_simulationParameters.StopTime, _simulationParameters.MaxTimestep);
+                        break;
+                    case SimulationParameters.AnalysisType.ACSweep:
+                        string acSource = netlistCommands.FirstOrDefault(c => c.StartsWith("ACV"))?.Split(' ')[1] ?? "";
+                        if (string.IsNullOrEmpty(acSource)) { MessageBox.Show("AC Sweep requires an ACV component.", "Simulation Error"); return; }
+                        success = _activeSimulator.RunACAnalysis(acSource, _simulationParameters.StartFrequency, _simulationParameters.StopFrequency, _simulationParameters.NumberOfPoints, _simulationParameters.SweepType);
+                        break;
                 }
+
+                if (success)
+                {
+                    if (_plotWindow == null || !_plotWindow.IsLoaded)
+                    {
+                        _plotWindow = new PlotWindow { Owner = this };
+                    }
+                    _plotWindow.LoadInitialData(_activeSimulator, _activeSimulator.GetNodeNames());
+                    _plotWindow.Show();
+                    _plotWindow.Activate();
+                }
+                else
+                {
+                    MessageBox.Show("The simulation failed to run.", "Simulation Error");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"An error occurred: {ex.Message}", "Error");
             }
         }
     }
