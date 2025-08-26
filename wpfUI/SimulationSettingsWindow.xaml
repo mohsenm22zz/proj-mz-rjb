@@ -10,9 +10,9 @@
         </Grid.RowDefinitions>
 
         <TabControl Grid.Row="0">
-            <TabItem Header="DC op pnt" x:Name="DcOpPntTab">
+            <TabItem Header="DC Operating Point" x:Name="DCOperatingPointTab">
                 <Grid Margin="10">
-                    <TextBlock Text="Find the DC operating point of the circuit." VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Calculates the DC operating point of the circuit." VerticalAlignment="Center" HorizontalAlignment="Center"/>
                 </Grid>
             </TabItem>
             

@@ -1,4 +1,6 @@
-﻿using System.Windows;
+﻿// mohsenm22zz/proj-mz-rjb/proj-mz-rjb-e850e6c0f7d11e5661819e4f80ff5ef06a6db456/wpfUI/SimulationSettingsWindow.xaml.cs
+
+using System.Windows;
 using System.Windows.Controls;
 
 namespace wpfUI
@@ -17,28 +19,30 @@ namespace wpfUI
         {
             try
             {
-                if (DcOpPntTab.IsSelected)
+                // --- FIX: Corrected the name of the TabItem to match the XAML file ---
+                if (DCOperatingPointTab.IsSelected)
                 {
-                    Parameters.CurrentAnalysis = SimulationParameters.AnalysisType.DCAnalysis;
+                    // --- FIX: Corrected the enum value to match the definition in SimulationParameters.cs ---
+                    Parameters.CurrentAnalysis = SimulationParameters.AnalysisType.DCOperatingPoint;
                 }
                 else if (TransientTab.IsSelected)
                 {
                     Parameters.CurrentAnalysis = SimulationParameters.AnalysisType.Transient;
-                    Parameters.StopTime = double.Parse(StopTimeTextBox.Text.Replace("s", ""));
-                    Parameters.MaxTimestep = double.Parse(MaxTimestepTextBox.Text.Replace("ms", "")) / 1000.0;
+                    Parameters.StopTime = double.Parse(StopTimeTextBox.Text);
+                    Parameters.MaxTimestep = double.Parse(MaxTimestepTextBox.Text);
                 }
                 else if (AcSweepTab.IsSelected)
                 {
                     Parameters.CurrentAnalysis = SimulationParameters.AnalysisType.ACSweep;
                     Parameters.SweepType = ((ComboBoxItem)SweepTypeComboBox.SelectedItem).Content.ToString();
-                    Parameters.StartFrequency = double.Parse(StartFrequencyTextBox.Text.Replace("k", "000"));
-                    Parameters.StopFrequency = double.Parse(StopFrequencyTextBox.Text.Replace("k", "000"));
+                    Parameters.StartFrequency = double.Parse(StartFrequencyTextBox.Text);
+                    Parameters.StopFrequency = double.Parse(StopFrequencyTextBox.Text);
                     Parameters.NumberOfPoints = int.Parse(NumPointsAcTextBox.Text);
                 }
                 else if (PhaseSweepTab.IsSelected)
                 {
                     Parameters.CurrentAnalysis = SimulationParameters.AnalysisType.PhaseSweep;
-                    Parameters.BaseFrequency = double.Parse(BaseFrequencyTextBox.Text.Replace("k", "000"));
+                    Parameters.BaseFrequency = double.Parse(BaseFrequencyTextBox.Text);
                     Parameters.StartPhase = double.Parse(StartPhaseTextBox.Text);
                     Parameters.StopPhase = double.Parse(StopPhaseTextBox.Text);
                     Parameters.NumberOfPoints = int.Parse(NumPointsPhaseTextBox.Text);

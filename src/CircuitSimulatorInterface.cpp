@@ -1,10 +1,8 @@
-// mohsenm22zz/proj-mz-rjb/proj-mz-rjb-1b949d5aa204b9f590a1c5f0644f3424cf2a70ce/src/CircuitSimulatorInterface.cpp
-
 #include "CircuitSimulatorInterface.h"
 #include "Analysis.h"
-#include <cstring> // For strcpy_s
+#include <cstring>
 #include <string>
-#include <sstream> // For std::stringstream
+#include <sstream>
 
 extern "C" {
     void* CreateCircuit() {
@@ -51,10 +49,8 @@ extern "C" {
         }
     }
     
-    // --- NEW: Implementation for AddACVoltageSource ---
     void AddACVoltageSource(void* circuit, const char* name, const char* node1, const char* node2, double magnitude, double phase) {
-        // This function is a stub. You will need to implement the logic in your Circuit class
-        // to handle ACVoltageSource components.
+        // Stub
     }
 
     void SetGroundNode(void* circuit, const char* nodeName) {
@@ -81,10 +77,9 @@ extern "C" {
         return false;
     }
 
-    // --- NEW: Stub implementation for RunACAnalysis ---
     bool RunACAnalysis(void* circuit, const char* sourceName, double startFreq, double stopFreq, int numPoints, const char* sweepType) {
-        // This is a stub. The full AC analysis logic needs to be called here.
-        return false; // Return false until implemented
+        // Stub
+        return false;
     }
 
     double GetNodeVoltage(void* circuit, const char* nodeName) {
@@ -97,30 +92,23 @@ extern "C" {
         return 0.0;
     }
 
-    // --- FIX: Implemented safe string marshalling by creating a comma-separated list ---
     int GetNodeNames(void* circuit, char* nodeNamesBuffer, int bufferSize) {
-        if (!circuit || !nodeNamesBuffer || bufferSize == 0) {
-            return 0;
-        }
-
+        if (!circuit || !nodeNamesBuffer || bufferSize == 0) return 0;
         Circuit* c = static_cast<Circuit*>(circuit);
         std::stringstream ss;
         bool first = true;
         for (const auto& node : c->nodes) {
-            if (!first) {
-                ss << ",";
+            if (!node->isGround) {
+                if (!first) ss << ",";
+                ss << node->name;
+                first = false;
             }
-            ss << node->name;
-            first = false;
         }
-        
         std::string allNames = ss.str();
         if (allNames.length() < bufferSize) {
             strcpy_s(nodeNamesBuffer, bufferSize, allNames.c_str());
-            return allNames.length();
+            return allNames.length() + 1;
         }
-        
-        // Buffer too small
         nodeNamesBuffer[0] = '\0';
         return 0;
     }
@@ -142,9 +130,56 @@ extern "C" {
         return 0;
     }
 
-    // --- NEW: Stub implementation for GetNodeSweepHistory ---
     int GetNodeSweepHistory(void* circuit, const char* nodeName, double* frequencies, double* magnitudes, int maxCount) {
-        // This is a stub. You will need to retrieve data from your AC analysis results.
+        // Stub
         return 0;
+    }
+
+    int GetComponentCurrentHistory(void* circuit, const char* componentName, double* timePoints, double* currents, int maxCount) {
+        if (circuit && componentName && timePoints && currents) {
+            Circuit* c = static_cast<Circuit*>(circuit);
+            VoltageSource* vs = c->findVoltageSource(componentName);
+            if (vs) {
+                int count = 0;
+                for (const auto& point : vs->current_history) {
+                    if (count >= maxCount) break;
+                    timePoints[count] = point.first;
+                    currents[count] = point.second;
+                    count++;
+                }
+                return count;
+            }
+        }
+        return 0;
+    }
+
+    // --- NEW: Implementation for getting all voltage source names ---
+    int GetAllVoltageSourceNames(void* circuit, char* vsNamesBuffer, int bufferSize) {
+        if (!circuit || !vsNamesBuffer || bufferSize == 0) return 0;
+        Circuit* c = static_cast<Circuit*>(circuit);
+        std::stringstream ss;
+        bool first = true;
+        for (const auto& vs : c->voltageSources) {
+            if (!first) ss << ",";
+            ss << vs.name;
+            first = false;
+        }
+        std::string allNames = ss.str();
+        if (allNames.length() < bufferSize) {
+            strcpy_s(vsNamesBuffer, bufferSize, allNames.c_str());
+            return allNames.length() + 1;
+        }
+        vsNamesBuffer[0] = '\0';
+        return 0;
+    }
+
+    double GetVoltageSourceCurrent(void* circuit, const char* vsName) {
+        if (circuit && vsName) {
+            VoltageSource* vs = static_cast<Circuit*>(circuit)->findVoltageSource(vsName);
+            if (vs) {
+                return vs->getCurrent();
+            }
+        }
+        return 0.0;
     }
 }
