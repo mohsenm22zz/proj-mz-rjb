@@ -1,6 +1,7 @@
 ﻿using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows;
+using System;
 
 namespace wpfUI
 {
@@ -9,7 +10,6 @@ namespace wpfUI
     /// </summary>
     public partial class ComponentControl : UserControl
     {
-        // Dependency property to make the component name bindable
         public static readonly DependencyProperty ComponentNameProperty =
             DependencyProperty.Register("ComponentName", typeof(string), typeof(ComponentControl), new PropertyMetadata("Cmp", OnComponentNameChanged));
 
@@ -33,25 +33,32 @@ namespace wpfUI
             InitializeComponent();
         }
 
-        // Basic drag-and-drop functionality
+        // --- Drag-and-drop with Grid Snapping ---
         private Point startPoint;
+        private bool isDragging = false;
+
         protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
         {
             base.OnMouseLeftButtonDown(e);
-            startPoint = e.GetPosition(Parent as IInputElement);
-            this.CaptureMouse();
+            if (Parent is Canvas)
+            {
+                startPoint = e.GetPosition(Parent as IInputElement);
+                this.CaptureMouse();
+                isDragging = true;
+            }
         }
 
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
-            if (this.IsMouseCaptured)
+            if (isDragging)
             {
                 Point currentPoint = e.GetPosition(Parent as IInputElement);
-                var dragDelta = currentPoint - startPoint;
-
-                Canvas.SetLeft(this, Canvas.GetLeft(this) + dragDelta.X);
-                Canvas.SetTop(this, Canvas.GetTop(this) + dragDelta.Y);
+                double newX = Canvas.GetLeft(this) + (currentPoint.X - startPoint.X);
+                double newY = Canvas.GetTop(this) + (currentPoint.Y - startPoint.Y);
+                
+                Canvas.SetLeft(this, newX);
+                Canvas.SetTop(this, newY);
 
                 startPoint = currentPoint;
             }
@@ -60,7 +67,27 @@ namespace wpfUI
         protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
         {
             base.OnMouseLeftButtonUp(e);
-            this.ReleaseMouseCapture();
+            if (isDragging)
+            {
+                this.ReleaseMouseCapture();
+                isDragging = false;
+
+                // --- NEW: Snap to Grid Logic ---
+                double gridSize = 20.0; // The size of our grid cells
+                double currentLeft = Canvas.GetLeft(this);
+                double currentTop = Canvas.GetTop(this);
+
+                // Calculate the nearest grid point for the center of the component
+                double centerX = currentLeft + this.Width / 2;
+                double centerY = currentTop + this.Height / 2;
+
+                double snappedCenterX = Math.Round(centerX / gridSize) * gridSize;
+                double snappedCenterY = Math.Round(centerY / gridSize) * gridSize;
+
+                // Adjust the top-left position based on the snapped center
+                Canvas.SetLeft(this, snappedCenterX - this.Width / 2);
+                Canvas.SetTop(this, snappedCenterY - this.Height / 2);
+            }
         }
     }
 }
