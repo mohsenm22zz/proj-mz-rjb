@@ -7,17 +7,15 @@ using System.Windows.Controls;
 
 namespace wpfUI
 {
-    /// <summary>
-    /// Generates a netlist from the components on the SchematicCanvas.
-    /// </summary>
     public class NetlistGenerator
     {
         private class NetlistComponentInfo
         {
             public string Name { get; set; }
-            public string Node1 { get; set; }
-            public string Node2 { get; set; }
-            public double Value { get; set; } // Simplified value
+            public string Node1 { get; set; } // Positive terminal for V, From terminal for I
+            public string Node2 { get; set; } // Negative terminal for V, To terminal for I
+            public double Value { get; set; }
+            public double AcPhase { get; set; } 
         }
 
         public static List<string> Generate(Canvas canvas)
@@ -28,7 +26,6 @@ namespace wpfUI
             var nodeMap = new Dictionary<Point, string>();
             int nodeCounter = 1;
 
-            // 1. Find all connection points from components and nodes
             foreach (var child in canvas.Children.OfType<FrameworkElement>())
             {
                 if (child is ComponentControl component)
@@ -45,61 +42,76 @@ namespace wpfUI
                 }
             }
             
-            // 2. Group connection points that are connected by wires into logical nodes
-            // (This is a simplified version. A full implementation would use graph traversal.)
             var distinctPoints = connectionPoints.Distinct().ToList();
             foreach(var point in distinctPoints)
             {
                 if (!nodeMap.ContainsKey(point))
                 {
-                    // For now, treat every unique connection point as a unique node.
-                    // A ground node should be explicitly handled (e.g., named "0").
                     nodeMap[point] = $"N{nodeCounter++}";
                 }
             }
 
-            // 3. Create component info with mapped node names
             foreach (var child in canvas.Children.OfType<ComponentControl>())
             {
                 Point leftConnector = child.LeftConnector.TransformToAncestor(canvas).Transform(new Point(child.LeftConnector.ActualWidth / 2, child.LeftConnector.ActualHeight / 2));
                 Point rightConnector = child.RightConnector.TransformToAncestor(canvas).Transform(new Point(child.RightConnector.ActualWidth / 2, child.RightConnector.ActualHeight / 2));
 
-                string node1 = nodeMap.ContainsKey(leftConnector) ? nodeMap[leftConnector] : "UNCONNECTED";
-                string node2 = nodeMap.ContainsKey(rightConnector) ? nodeMap[rightConnector] : "UNCONNECTED";
+                string leftNode = nodeMap.ContainsKey(leftConnector) ? nodeMap[leftConnector] : "UNCONNECTED";
+                string rightNode = nodeMap.ContainsKey(rightConnector) ? nodeMap[rightConnector] : "UNCONNECTED";
                 
-                // This is a placeholder for getting component values (e.g., from a dialog)
-                double value = 1; // Default value
-                if (child.ComponentName.StartsWith("R")) value = 1000; // 1k Ohm
-                if (child.ComponentName.StartsWith("V")) value = 5;    // 5 Volts
-
-                componentInfos.Add(new NetlistComponentInfo
+                var info = new NetlistComponentInfo
                 {
                     Name = child.ComponentName,
-                    Node1 = node1,
-                    Node2 = node2,
-                    Value = value
-                });
+                    Value = child.Value,
+                    AcPhase = child.AcPhase
+                };
+
+                // --- MODIFIED: Enforce polarity for sources ---
+                string type = new string(info.Name.TakeWhile(char.IsLetter).ToArray());
+                if (type == "V" || type == "ACV")
+                {
+                    // Positive terminal is on the right
+                    info.Node1 = rightNode; 
+                    info.Node2 = leftNode;
+                }
+                else if (type == "I")
+                {
+                    // Current flows from left to right
+                    info.Node1 = leftNode;
+                    info.Node2 = rightNode;
+                }
+                else // For non-polar components like Resistors
+                {
+                    info.Node1 = leftNode;
+                    info.Node2 = rightNode;
+                }
+                
+                componentInfos.Add(info);
             }
 
-            // 4. Build the final command strings
             foreach (var info in componentInfos)
             {
                 string type = new string(info.Name.TakeWhile(char.IsLetter).ToArray());
-                string command = $"{type} {info.Name} {info.Node1} {info.Node2} {info.Value}";
+                string command;
+                if (type == "ACV")
+                {
+                    command = $"{type} {info.Name} {info.Node1} {info.Node2} {info.Value} {info.AcPhase}";
+                }
+                else
+                {
+                    command = $"{type} {info.Name} {info.Node1} {info.Node2} {info.Value}";
+                }
                 commands.Add(command);
             }
 
-            // Add a ground node command (assuming one node is ground)
             if (nodeMap.Values.Any())
             {
-                 // Heuristic: find the lowest node and call it ground.
                 string groundNode = nodeMap.OrderBy(kvp => kvp.Key.Y).ThenBy(kvp => kvp.Key.X).FirstOrDefault().Value;
                 if(groundNode != null)
                 {
                     commands.Add($"GND {groundNode}");
                 }
             }
-
 
             return commands;
         }

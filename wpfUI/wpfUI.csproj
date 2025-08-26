@@ -7,6 +7,10 @@
     <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="ScottPlot.WPF" Version="5.0.56" />
+  </ItemGroup>
+
 </Project>
 <!--
    cd C:\Users\mzake\RiderProjects\proj-mz-rjb\wpfUI

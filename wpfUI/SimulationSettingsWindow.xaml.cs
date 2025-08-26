@@ -1,15 +1,54 @@
 ﻿using System.Windows;
+using System.Windows.Controls;
 
 namespace wpfUI
 {
-    /// <summary>
-    /// Interaction logic for SimulationSettingsWindow.xaml
-    /// </summary>
     public partial class SimulationSettingsWindow : Window
     {
+        // --- NEW: Public property to hold the collected parameters ---
+        public SimulationParameters Parameters { get; private set; }
+
         public SimulationSettingsWindow()
         {
             InitializeComponent();
+            Parameters = new SimulationParameters();
+        }
+
+        private void OkButton_Click(object sender, RoutedEventArgs e)
+        {
+            // --- NEW: Logic to parse and save the settings from the UI ---
+            try
+            {
+                // Determine which tab is selected
+                if (TransientTab.IsSelected)
+                {
+                    Parameters.CurrentAnalysis = SimulationParameters.AnalysisType.Transient;
+                    Parameters.StopTime = double.Parse(StopTimeTextBox.Text);
+                    Parameters.MaxTimestep = double.Parse(MaxTimestepTextBox.Text);
+                }
+                else if (AcSweepTab.IsSelected)
+                {
+                    Parameters.CurrentAnalysis = SimulationParameters.AnalysisType.ACSweep;
+                    Parameters.SweepType = ((ComboBoxItem)SweepTypeComboBox.SelectedItem).Content.ToString();
+                    Parameters.StartFrequency = double.Parse(StartFrequencyTextBox.Text);
+                    Parameters.StopFrequency = double.Parse(StopFrequencyTextBox.Text);
+                    Parameters.NumberOfPoints = int.Parse(NumPointsAcTextBox.Text);
+                }
+                else if (PhaseSweepTab.IsSelected)
+                {
+                    Parameters.CurrentAnalysis = SimulationParameters.AnalysisType.PhaseSweep;
+                    Parameters.BaseFrequency = double.Parse(BaseFrequencyTextBox.Text);
+                    Parameters.StartPhase = double.Parse(StartPhaseTextBox.Text);
+                    Parameters.StopPhase = double.Parse(StopPhaseTextBox.Text);
+                    Parameters.NumberOfPoints = int.Parse(NumPointsPhaseTextBox.Text);
+                }
+
+                DialogResult = true;
+            }
+            catch (System.Exception ex)
+            {
+                MessageBox.Show($"Invalid input. Please check the values.\nError: {ex.Message}", "Input Error");
+            }
         }
     }
 }

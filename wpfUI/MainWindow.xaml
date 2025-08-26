@@ -7,6 +7,12 @@
         mc:Ignorable="d"
         Title="Circuit Simulator" Height="720" Width="1280"
         Background="#2D2D30">
+    <Window.Resources>
+        <!-- NEW: Style for MenuItems to make text darker-->
+        <Style TargetType="MenuItem">
+            <Setter Property="Foreground" Value="#CCCCCC"/>
+        </Style>
+    </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -26,9 +32,7 @@
             </MenuItem>
             <MenuItem Header="_Place">
                 <MenuItem Header="_Component..." Click="PlaceComponent_Click"/>
-                <!--  NEW: Added Node menu item  -->
                 <MenuItem Header="_Node" Click="PlaceNode_Click"/>
-                <!-- MODIFIED: Made Wire checkable -->
                 <MenuItem x:Name="WireMenuItem" Header="_Wire" IsCheckable="True" Click="PlaceWire_Click"/>
                 <MenuItem Header="_Net Label"/>
             </MenuItem>
