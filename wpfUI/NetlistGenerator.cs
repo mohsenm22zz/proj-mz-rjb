@@ -12,18 +12,16 @@ namespace wpfUI
         private class NetlistComponentInfo
         {
             public string Name { get; set; }
-            public string Node1 { get; set; } // Positive terminal for V, From terminal for I
-            public string Node2 { get; set; } // Negative terminal for V, To terminal for I
+            public string Node1 { get; set; }
+            public string Node2 { get; set; }
             public double Value { get; set; }
-            public double AcPhase { get; set; } 
+            public double AcPhase { get; set; }
         }
 
-        public static List<string> Generate(Canvas canvas)
+        private static Dictionary<Point, string> CreateNodeMap(Canvas canvas)
         {
-            var commands = new List<string>();
-            var connectionPoints = new List<Point>();
-            var componentInfos = new List<NetlistComponentInfo>();
             var nodeMap = new Dictionary<Point, string>();
+            var connectionPoints = new List<Point>();
             int nodeCounter = 1;
 
             foreach (var child in canvas.Children.OfType<FrameworkElement>())
@@ -41,15 +39,23 @@ namespace wpfUI
                     connectionPoints.Add(nodeCenter);
                 }
             }
-            
+
             var distinctPoints = connectionPoints.Distinct().ToList();
-            foreach(var point in distinctPoints)
+            foreach (var point in distinctPoints)
             {
                 if (!nodeMap.ContainsKey(point))
                 {
                     nodeMap[point] = $"N{nodeCounter++}";
                 }
             }
+            return nodeMap;
+        }
+
+        public static List<string> Generate(Canvas canvas)
+        {
+            var commands = new List<string>();
+            var componentInfos = new List<NetlistComponentInfo>();
+            var nodeMap = CreateNodeMap(canvas);
 
             foreach (var child in canvas.Children.OfType<ComponentControl>())
             {
@@ -58,7 +64,7 @@ namespace wpfUI
 
                 string leftNode = nodeMap.ContainsKey(leftConnector) ? nodeMap[leftConnector] : "UNCONNECTED";
                 string rightNode = nodeMap.ContainsKey(rightConnector) ? nodeMap[rightConnector] : "UNCONNECTED";
-                
+
                 var info = new NetlistComponentInfo
                 {
                     Name = child.ComponentName,
@@ -69,7 +75,7 @@ namespace wpfUI
                 string type = new string(info.Name.TakeWhile(char.IsLetter).ToArray());
                 if (type == "V" || type == "ACV")
                 {
-                    info.Node1 = rightNode; 
+                    info.Node1 = rightNode;
                     info.Node2 = leftNode;
                 }
                 else if (type == "I")
@@ -82,35 +88,76 @@ namespace wpfUI
                     info.Node1 = leftNode;
                     info.Node2 = rightNode;
                 }
-                
+
                 componentInfos.Add(info);
             }
 
             foreach (var info in componentInfos)
             {
                 string type = new string(info.Name.TakeWhile(char.IsLetter).ToArray());
-                string command;
-                if (type == "ACV")
-                {
-                    command = $"{type} {info.Name} {info.Node1} {info.Node2} {info.Value} {info.AcPhase}";
-                }
-                else
-                {
-                    command = $"{type} {info.Name} {info.Node1} {info.Node2} {info.Value}";
-                }
+                string command = (type == "ACV")
+                    ? $"{type} {info.Name} {info.Node1} {info.Node2} {info.Value} {info.AcPhase}"
+                    : $"{type} {info.Name} {info.Node1} {info.Node2} {info.Value}";
                 commands.Add(command);
             }
 
-            if (nodeMap.Values.Any())
+            string explicitGroundNode = null;
+            foreach (var node in canvas.Children.OfType<NodeControl>())
             {
-                string groundNode = nodeMap.OrderBy(kvp => kvp.Key.Y).ThenBy(kvp => kvp.Key.X).FirstOrDefault().Value;
-                if(groundNode != null)
+                if (node.IsGround)
                 {
-                    commands.Add($"GND {groundNode}");
+                    Point nodeCenter = new Point(Canvas.GetLeft(node) + node.Width / 2, Canvas.GetTop(node) + node.Height / 2);
+                    if (nodeMap.ContainsKey(nodeCenter))
+                    {
+                        explicitGroundNode = nodeMap[nodeCenter];
+                        break;
+                    }
+                }
+            }
+
+            if (explicitGroundNode != null)
+            {
+                commands.Add($"GND {explicitGroundNode}");
+            }
+            else if (nodeMap.Any())
+            {
+                string defaultGround = nodeMap.OrderBy(kvp => kvp.Key.Y).ThenBy(kvp => kvp.Key.X).FirstOrDefault().Value;
+                if (defaultGround != null)
+                {
+                    commands.Add($"GND {defaultGround}");
                 }
             }
 
             return commands;
+        }
+
+        // --- FIX: Added the missing FindProbeTarget method ---
+        public static string FindProbeTarget(Canvas canvas, Point clickPoint)
+        {
+            double tolerance = 10.0;
+
+            // Check for components first
+            foreach (var component in canvas.Children.OfType<ComponentControl>())
+            {
+                Point componentPos = component.TransformToAncestor(canvas).Transform(new Point(0, 0));
+                Rect componentBounds = new Rect(componentPos, new Size(component.ActualWidth, component.ActualHeight));
+                if (componentBounds.Contains(clickPoint))
+                {
+                    return $"I({component.ComponentName})"; // Probing a component gives its current
+                }
+            }
+
+            // If not a component, check for a node/wire
+            var nodeMap = CreateNodeMap(canvas);
+            foreach (var entry in nodeMap)
+            {
+                if ((clickPoint - entry.Key).Length < tolerance)
+                {
+                    return entry.Value; // Probing a node/wire gives its voltage
+                }
+            }
+
+            return null; // Nothing found at the click point
         }
     }
 }

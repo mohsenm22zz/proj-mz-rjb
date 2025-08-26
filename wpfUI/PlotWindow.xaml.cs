@@ -1,6 +1,9 @@
+// mohsenm22zz/proj-mz-rjb/proj-mz-rjb-1b949d5aa204b9f590a1c5f0644f3424cf2a70ce/wpfUI/PlotWindow.xaml.cs
+
 using System;
 using System.Collections.Generic;
 using System.Windows;
+using System.Linq;
 
 namespace wpfUI
 {
@@ -9,29 +12,52 @@ namespace wpfUI
         public PlotWindow()
         {
             InitializeComponent();
-            WpfPlot1.Plot.Title("Simulation Results");
-            WpfPlot1.Plot.XLabel("Time (s)");
-            WpfPlot1.Plot.YLabel("Voltage (V)");
         }
 
-        public void LoadInitialData(CircuitSimulatorService simulator, string[] nodeNames)
+        public void LoadData(CircuitSimulatorService simulator, string[] itemsToPlot)
         {
             WpfPlot1.Plot.Clear();
-            WpfPlot1.Plot.ShowLegend();
-            WpfPlot1.Refresh();
-        }
-        public void AddNodeData(CircuitSimulatorService simulator, string nodeName)
-        {
-            if (string.IsNullOrEmpty(nodeName)) return;
+            bool hasVoltageData = false;
+            bool hasCurrentData = false;
 
-            Tuple<double[], double[]> history = simulator.GetNodeVoltageHistory(nodeName);
-            if (history.Item1.Length > 0)
+            foreach (var item in itemsToPlot)
             {
-                var scatterPlot = WpfPlot1.Plot.Add.Scatter(history.Item1, history.Item2);
-                scatterPlot.Label = $"V({nodeName})";
-                WpfPlot1.Plot.ShowLegend();
-                WpfPlot1.Refresh();
+                if (item.StartsWith("I(")) // It's a current probe
+                {
+                    // NOTE: This requires GetComponentCurrentHistory to be implemented in the C++ core
+                    // For now, this part will not plot anything until the backend is updated.
+                    string componentName = item.Substring(2, item.Length - 3);
+                    // Tuple<double[], double[]> history = simulator.GetComponentCurrentHistory(componentName);
+                    // if (history.Item1.Length > 1) { ... plotting logic ... }
+                    hasCurrentData = true; 
+                }
+                else // It's a voltage probe
+                {
+                    Tuple<double[], double[]> history = simulator.GetNodeVoltageHistory(item);
+                    if (history.Item1.Length > 1)
+                    {
+                        double sampleRate = 1.0 / (history.Item1[1] - history.Item1[0]);
+                        var signalPlot = WpfPlot1.Plot.Add.Signal(history.Item2, sampleRate);
+                        signalPlot.Label = $"V({item})";
+                        hasVoltageData = true;
+                    }
+                }
             }
+
+            WpfPlot1.Plot.Title("Simulation Results");
+            WpfPlot1.Plot.XLabel("Time (s)");
+            
+            if (hasVoltageData && hasCurrentData)
+                WpfPlot1.Plot.YLabel("Voltage (V) / Current (A)");
+            else if (hasVoltageData)
+                WpfPlot1.Plot.YLabel("Voltage (V)");
+            else if (hasCurrentData)
+                WpfPlot1.Plot.YLabel("Current (A)");
+
+            if (itemsToPlot.Any())
+                WpfPlot1.Plot.ShowLegend();
+                
+            WpfPlot1.Refresh();
         }
     }
 }

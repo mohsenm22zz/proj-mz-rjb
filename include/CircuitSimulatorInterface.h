@@ -1,41 +1,38 @@
+// mohsenm22zz/proj-mz-rjb/proj-mz-rjb-1b949d5aa204b9f590a1c5f0644f3424cf2a70ce/include/CircuitSimulatorInterface.h
+
 #pragma once
 
-#include "export.h"
+#include "export.h" // Macro for DLL export/import
 #include "Circuit.h"
 #include <vector>
 #include <string>
 
+// C-style interface to be exported from the DLL.
+// This allows the C++ code to be called from other languages like C#.
 extern "C" {
-    // Function to create a new circuit
     CIRCUITSIMULATOR_API void* CreateCircuit();
-
-    // Function to destroy a circuit
     CIRCUITSIMULATOR_API void DestroyCircuit(void* circuit);
-
-    // Function to add a node to the circuit
     CIRCUITSIMULATOR_API void AddNode(void* circuit, const char* name);
-
-    // Function to add a resistor to the circuit
     CIRCUITSIMULATOR_API void AddResistor(void* circuit, const char* name, const char* node1, const char* node2, double value);
-
-    // Function to add a voltage source to the circuit
     CIRCUITSIMULATOR_API void AddVoltageSource(void* circuit, const char* name, const char* node1, const char* node2, double voltage);
+    
+    // --- NEW: Added missing function declarations to match C# wrapper ---
+    CIRCUITSIMULATOR_API void AddACVoltageSource(void* circuit, const char* name, const char* node1, const char* node2, double magnitude, double phase);
 
-    // Function to set ground node
     CIRCUITSIMULATOR_API void SetGroundNode(void* circuit, const char* nodeName);
-
-    // Function to run DC analysis
     CIRCUITSIMULATOR_API bool RunDCAnalysis(void* circuit);
-
-    // Function to run transient analysis
     CIRCUITSIMULATOR_API bool RunTransientAnalysis(void* circuit, double stepTime, double stopTime);
 
-    // Function to get node voltage
+    // --- NEW: Added missing function declarations to match C# wrapper ---
+    CIRCUITSIMULATOR_API bool RunACAnalysis(void* circuit, const char* sourceName, double startFreq, double stopFreq, int numPoints, const char* sweepType);
+
     CIRCUITSIMULATOR_API double GetNodeVoltage(void* circuit, const char* nodeName);
 
-    // Function to get all node names
-    CIRCUITSIMULATOR_API int GetNodeNames(void* circuit, const char** nodeNames, int maxCount);
+    // --- FIX: Changed signature to write into a character buffer for safe string marshalling ---
+    CIRCUITSIMULATOR_API int GetNodeNames(void* circuit, char* nodeNamesBuffer, int bufferSize);
 
-    // Function to get node voltages for transient analysis
     CIRCUITSIMULATOR_API int GetNodeVoltageHistory(void* circuit, const char* nodeName, double* timePoints, double* voltages, int maxCount);
+
+    // --- NEW: Added missing function declarations to match C# wrapper ---
+    CIRCUITSIMULATOR_API int GetNodeSweepHistory(void* circuit, const char* nodeName, double* frequencies, double* magnitudes, int maxCount);
 }

@@ -1,7 +1,10 @@
+// mohsenm22zz/proj-mz-rjb/proj-mz-rjb-1b949d5aa204b9f590a1c5f0644f3424cf2a70ce/wpfUI/NodeControl.xaml.cs
+
 using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 
 namespace wpfUI
 {
@@ -9,9 +12,40 @@ namespace wpfUI
     {
         public bool HasBeenPlaced { get; set; } = false;
 
+        // --- NEW: Dependency property to handle the ground state ---
+        public static readonly DependencyProperty IsGroundProperty =
+            DependencyProperty.Register("IsGround", typeof(bool), typeof(NodeControl), new PropertyMetadata(false, OnIsGroundChanged));
+
+        public bool IsGround
+        {
+            get { return (bool)GetValue(IsGroundProperty); }
+            set { SetValue(IsGroundProperty, value); }
+        }
+
+        private static void OnIsGroundChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var control = d as NodeControl;
+            control?.UpdateVisualState();
+        }
+
         public NodeControl()
         {
             InitializeComponent();
+            UpdateVisualState();
+        }
+
+        // --- NEW: Method to update the visual appearance based on IsGround property ---
+        private void UpdateVisualState()
+        {
+            if (IsGround)
+            {
+                NodeRectangle.Fill = Brushes.Green; // Change color to indicate ground
+                // In a more advanced version, you could display a ground symbol here
+            }
+            else
+            {
+                NodeRectangle.Fill = Brushes.White;
+            }
         }
 
         private Point startPoint;
