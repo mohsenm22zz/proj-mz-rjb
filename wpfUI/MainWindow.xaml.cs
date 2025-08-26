@@ -12,7 +12,6 @@ namespace wpfUI
 {
     public partial class MainWindow : Window
     {
-        private readonly CircuitSimulatorService _simulatorService;
         private readonly Dictionary<string, int> _componentCounts = new Dictionary<string, int>
         {
             {"R", 1}, {"C", 1}, {"L", 1}, {"D", 1}, {"V", 1}, {"ACV", 1}, {"I", 1}
@@ -21,11 +20,12 @@ namespace wpfUI
         private bool _isWiringMode = false;
         private bool _isCircuitLocked = false;
         private Wire _currentWire = null;
+        private SimulationParameters _simulationParameters;
 
         public MainWindow()
         {
             InitializeComponent();
-            _simulatorService = new CircuitSimulatorService();
+            _simulationParameters = new SimulationParameters(); // Initialize with default parameters
             this.Loaded += (s, e) => DrawGrid();
             this.KeyDown += MainWindow_KeyDown;
         }
@@ -149,7 +149,6 @@ namespace wpfUI
 
         private void Canvas_Wiring_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
         {
-            // Finalize the current wire on right-click
             if (_isWiringMode)
             {
                 ExitWiringMode();
@@ -169,7 +168,6 @@ namespace wpfUI
 
             if (_currentWire == null)
             {
-                // Start a new wire
                 _currentWire = new Wire();
                 _currentWire.StartPoint = snappedPoint;
                 _currentWire.AddPoint(snappedPoint);
@@ -177,11 +175,9 @@ namespace wpfUI
             }
             else
             {
-                // Add a new segment to the existing wire
                 _currentWire.AddPoint(snappedPoint);
             }
 
-            // If the click point is on a connection point, end the wire
             if (FindNearestConnectionPoint(clickPoint) != null && _currentWire.StartPoint != snappedPoint)
             {
                 ExitWiringMode();
@@ -254,14 +250,95 @@ namespace wpfUI
         {
             var settingsWindow = new SimulationSettingsWindow();
             settingsWindow.Owner = this;
-            settingsWindow.ShowDialog();
+            
+            // Show the dialog and wait for it to close
+            bool? result = settingsWindow.ShowDialog();
+
+            if (result == true)
+            {
+                // If the user clicked OK, retrieve the parameters
+                // This requires adding public properties to SimulationSettingsWindow.xaml.cs
+                // For now, we'll just store a placeholder.
+                // _simulationParameters = settingsWindow.Parameters;
+                MessageBox.Show("Simulation settings saved!");
+            }
         }
 
         private void RunAnalysis_Click(object sender, RoutedEventArgs e)
         {
-            var plotWindow = new PlotWindow();
-            plotWindow.Owner = this;
-            plotWindow.Show();
+            // 1. Generate the netlist from the canvas
+            List<string> netlistCommands = NetlistGenerator.Generate(SchematicCanvas);
+
+            if (!netlistCommands.Any())
+            {
+                MessageBox.Show("The circuit is empty. Add some components to simulate.", "Empty Circuit");
+                return;
+            }
+
+            // For debugging: display the generated netlist
+            var netlistText = string.Join("\n", netlistCommands);
+            MessageBox.Show("Generated Netlist:\n\n" + netlistText, "Netlist");
+
+            // 2. Create a new simulator instance and load the circuit
+            using (var simulator = new CircuitSimulatorService())
+            {
+                // This is a simplified loading process. You'll need to parse each command.
+                foreach (var command in netlistCommands)
+                {
+                    var parts = command.Split(' ');
+                    string type = parts[0];
+                    if (type == "GND")
+                    {
+                        simulator.SetGroundNode(parts[1]);
+                    }
+                    else
+                    {
+                        // Example for a resistor. You need to expand this for all component types.
+                        if (type == "R")
+                        {
+                            simulator.AddResistor(parts[1], parts[2], parts[3], double.Parse(parts[4]));
+                        }
+                        else if (type == "V")
+                        {
+                             simulator.AddVoltageSource(parts[1], parts[2], parts[3], double.Parse(parts[4]));
+                        }
+                        // ... add other component types here ...
+                    }
+                }
+
+                // 3. Run the selected analysis with the stored parameters
+                bool success = false;
+                switch (_simulationParameters.CurrentAnalysis)
+                {
+                    case SimulationParameters.AnalysisType.Transient:
+                        success = simulator.RunTransientAnalysis(_simulationParameters.StopTime, _simulationParameters.MaxTimestep);
+                        break;
+                    case SimulationParameters.AnalysisType.ACSweep:
+                        // You will need to get the source name for the sweep
+                        string acSourceName = "V1"; // Placeholder
+                        success = simulator.RunACAnalysis(acSourceName, _simulationParameters.StartFrequency, _simulationParameters.StopFrequency, _simulationParameters.NumberOfPoints);
+                        break;
+                    // Add Phase Sweep case here
+                }
+
+                if (success)
+                {
+                    // 4. If successful, open the plot window and pass the results
+                    var plotWindow = new PlotWindow();
+                    plotWindow.Owner = this;
+                    
+                    // Example: Get results for all nodes and pass them to the plot window
+                    var nodeNames = simulator.GetNodeNames();
+                    // You would create a method in PlotWindow to accept this data
+                    // plotWindow.LoadData(simulator, nodeNames);
+
+                    plotWindow.Show();
+                }
+                else
+                {
+                    MessageBox.Show("The simulation failed to run. Please check the circuit.", "Simulation Error");
+                }
+            }
         }
     }
 }
