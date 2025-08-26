@@ -1,12 +1,22 @@
-#pragma once
+#ifndef CIRCUITIO_H
+#define CIRCUITIO_H
 
-#include <vector>
-#include <string>
 #include "Circuit.h"
-#include "export.h" // Include the export header
+#include <string>
+#include <vector>
+#include <memory>
 
-// Add the export macro to the functions you want to call from C#
-CIRCUITSIMULATOR_API bool command_handling(Circuit &circuit, const std::vector<std::string> &cmds, std::vector<std::vector<std::string>> &analysisCommands);
-CIRCUITSIMULATOR_API bool handleErrors(const Circuit &circuit);
-CIRCUITSIMULATOR_API Circuit readCircuitFromFile(const std::string &filename);
-CIRCUITSIMULATOR_API void saveResultsToFile(const Circuit &circuit, const std::string &filename);
+// A structure to hold the graphical information of the circuit
+struct GraphicalCircuit {
+    std::vector<std::shared_ptr<Component>> components;
+    // Wires can be represented by a list of start and end points
+    std::vector<std::pair<std::pair<double, double>, std::pair<double, double>>> wires;
+};
+
+class CircuitIO {
+public:
+    static std::string generateNetlist(const GraphicalCircuit& gCircuit);
+    static Circuit createCircuitFromNetlist(const std::string& netlist);
+};
+
+#endif // CIRCUITIO_H

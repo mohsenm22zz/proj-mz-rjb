@@ -1,7 +1,7 @@
-﻿using System;    
+using System;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows;
 
 namespace wpfUI
 {
@@ -25,22 +25,21 @@ namespace wpfUI
             }
         }
 
-        // --- NEW: Flag to lock movement after initial placement ---
-        public bool HasBeenPlaced { get; set; } = false;
+        // Flag to control if the component can be dragged
+        private bool _canDrag = true;
+        private Point startPoint;
+        private bool isDragging = false;
 
         public ComponentControl()
         {
             InitializeComponent();
         }
 
-        private Point startPoint;
-        private bool isDragging = false;
-
         protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
         {
             base.OnMouseLeftButtonDown(e);
-            // --- MODIFIED: Only allow dragging if it hasn't been placed yet ---
-            if (!HasBeenPlaced && Parent is Canvas)
+            // Only allow dragging if component can still be dragged
+            if (_canDrag && Parent is Canvas)
             {
                 startPoint = e.GetPosition(Parent as IInputElement);
                 this.CaptureMouse();
@@ -72,6 +71,10 @@ namespace wpfUI
                 this.ReleaseMouseCapture();
                 isDragging = false;
 
+                // Disable further dragging after first movement
+                _canDrag = false;
+
+                // Snap to grid
                 double gridSize = 20.0;
                 double currentLeft = Canvas.GetLeft(this);
                 double currentTop = Canvas.GetTop(this);
@@ -84,9 +87,6 @@ namespace wpfUI
                 
                 Canvas.SetLeft(this, snappedCenterX - this.Width / 2);
                 Canvas.SetTop(this, snappedCenterY - this.Height / 2);
-
-                // --- NEW: Lock the component after placing it ---
-                HasBeenPlaced = true;
             }
         }
     }
