@@ -26,7 +26,10 @@
             </MenuItem>
             <MenuItem Header="_Place">
                 <MenuItem Header="_Component..." Click="PlaceComponent_Click"/>
-                <MenuItem Header="_Wire"/>
+                <!--  NEW: Added Node menu item  -->
+                <MenuItem Header="_Node" Click="PlaceNode_Click"/>
+                <!-- MODIFIED: Made Wire checkable -->
+                <MenuItem x:Name="WireMenuItem" Header="_Wire" IsCheckable="True" Click="PlaceWire_Click"/>
                 <MenuItem Header="_Net Label"/>
             </MenuItem>
             <MenuItem Header="_Simulate">
