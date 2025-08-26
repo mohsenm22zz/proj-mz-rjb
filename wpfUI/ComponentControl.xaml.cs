@@ -1,13 +1,10 @@
-﻿using System.Windows.Controls;
+﻿using System;    
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows;
-using System;
 
 namespace wpfUI
 {
-    /// <summary>
-    /// Interaction logic for ComponentControl.xaml
-    /// </summary>
     public partial class ComponentControl : UserControl
     {
         public static readonly DependencyProperty ComponentNameProperty =
@@ -28,19 +25,22 @@ namespace wpfUI
             }
         }
 
+        // --- NEW: Flag to lock movement after initial placement ---
+        public bool HasBeenPlaced { get; set; } = false;
+
         public ComponentControl()
         {
             InitializeComponent();
         }
 
-        // --- Drag-and-drop with Grid Snapping ---
         private Point startPoint;
         private bool isDragging = false;
 
         protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
         {
             base.OnMouseLeftButtonDown(e);
-            if (Parent is Canvas)
+            // --- MODIFIED: Only allow dragging if it hasn't been placed yet ---
+            if (!HasBeenPlaced && Parent is Canvas)
             {
                 startPoint = e.GetPosition(Parent as IInputElement);
                 this.CaptureMouse();
@@ -72,21 +72,21 @@ namespace wpfUI
                 this.ReleaseMouseCapture();
                 isDragging = false;
 
-                // --- NEW: Snap to Grid Logic ---
-                double gridSize = 20.0; // The size of our grid cells
+                double gridSize = 20.0;
                 double currentLeft = Canvas.GetLeft(this);
                 double currentTop = Canvas.GetTop(this);
-
-                // Calculate the nearest grid point for the center of the component
+                
                 double centerX = currentLeft + this.Width / 2;
                 double centerY = currentTop + this.Height / 2;
 
                 double snappedCenterX = Math.Round(centerX / gridSize) * gridSize;
                 double snappedCenterY = Math.Round(centerY / gridSize) * gridSize;
-
-                // Adjust the top-left position based on the snapped center
+                
                 Canvas.SetLeft(this, snappedCenterX - this.Width / 2);
                 Canvas.SetTop(this, snappedCenterY - this.Height / 2);
+
+                // --- NEW: Lock the component after placing it ---
+                HasBeenPlaced = true;
             }
         }
     }

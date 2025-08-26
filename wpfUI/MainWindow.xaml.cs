@@ -17,7 +17,6 @@ namespace wpfUI
             {"R", 1}, {"C", 1}, {"L", 1}, {"D", 1}, {"V", 1}, {"ACV", 1}, {"I", 1}
         };
 
-        // --- State Variables ---
         private bool _isWiringMode = false;
         private bool _isCircuitLocked = false;
         private Wire _previewWire = null;
@@ -42,32 +41,27 @@ namespace wpfUI
         private void DrawGrid()
         {
             double gridSize = 20.0;
-            var existingChildren = SchematicCanvas.Children.OfType<UIElement>()
-                                        .Where(c => !(c is Line && ((Line)c).StrokeThickness == 1))
-                                        .ToList();
+            var existingChildren = SchematicCanvas.Children.OfType<UIElement>().ToList();
 
             SchematicCanvas.Children.Clear();
 
             for (double x = 0; x < SchematicCanvas.ActualWidth; x += gridSize)
             {
                 var line = new Line { X1 = x, Y1 = 0, X2 = x, Y2 = SchematicCanvas.ActualHeight, Stroke = new SolidColorBrush(Color.FromArgb(50, 80, 80, 80)), StrokeThickness = 1 };
-                Panel.SetZIndex(line, -10);
                 SchematicCanvas.Children.Add(line);
             }
 
             for (double y = 0; y < SchematicCanvas.ActualHeight; y += gridSize)
             {
                 var line = new Line { X1 = 0, Y1 = y, X2 = SchematicCanvas.ActualWidth, Y2 = y, Stroke = new SolidColorBrush(Color.FromArgb(50, 80, 80, 80)), StrokeThickness = 1 };
-                Panel.SetZIndex(line, -10);
                 SchematicCanvas.Children.Add(line);
             }
 
-            foreach (var child in existingChildren)
+            foreach (var child in existingChildren.Where(c => !(c is Line && ((Line)c).StrokeThickness == 1)))
             {
                 SchematicCanvas.Children.Add(child);
             }
         }
-
 
         private void AddComponent_Click(object sender, RoutedEventArgs e)
         {
@@ -93,29 +87,35 @@ namespace wpfUI
             }
         }
 
-        // --- FIXED: Now uses the proper NodeControl ---
         private void PlaceNode_Click(object sender, RoutedEventArgs e)
         {
-            var nodeControl = new NodeControl();
+            var nodeVisual = new Ellipse
+            {
+                Width = 8,
+                Height = 8,
+                Fill = Brushes.Cyan,
+                Tag = "Node"
+            };
 
             Point position = Mouse.GetPosition(SchematicCanvas);
             double gridSize = 20.0;
             double snappedX = Math.Round(position.X / gridSize) * gridSize;
             double snappedY = Math.Round(position.Y / gridSize) * gridSize;
 
-            Canvas.SetLeft(nodeControl, snappedX - nodeControl.Width / 2);
-            Canvas.SetTop(nodeControl, snappedY - nodeControl.Height / 2);
+            Canvas.SetLeft(nodeVisual, snappedX - nodeVisual.Width / 2);
+            Canvas.SetTop(nodeVisual, snappedY - nodeVisual.Height / 2);
 
-            SchematicCanvas.Children.Add(nodeControl);
+            SchematicCanvas.Children.Add(nodeVisual);
         }
 
         private void PlaceWire_Click(object sender, RoutedEventArgs e)
         {
+            // --- MODIFIED: Toggle wiring mode ---
             if (!_isWiringMode)
             {
                 _isWiringMode = true;
                 _isCircuitLocked = true;
-                WireMenuItem.IsChecked = true;
+                WireMenuItem.IsChecked = true; // Set the checkmark
                 SchematicCanvas.Cursor = Cursors.Cross;
                 SchematicCanvas.MouseLeftButtonDown += Canvas_Wiring_MouseDown;
                 SchematicCanvas.MouseMove += Canvas_Wiring_MouseMove;
@@ -129,7 +129,7 @@ namespace wpfUI
         private void ExitWiringMode()
         {
             _isWiringMode = false;
-            WireMenuItem.IsChecked = false;
+            WireMenuItem.IsChecked = false; // Remove the checkmark
             if (_previewWire != null)
             {
                 SchematicCanvas.Children.Remove(_previewWire);
@@ -155,13 +155,13 @@ namespace wpfUI
                 {
                     StartPoint = connectionPoint.Value,
                 };
-                _previewWire.UpdatePath(connectionPoint.Value);
+                _previewWire.UpdatePath(connectionPoint.Value); 
                 SchematicCanvas.Children.Add(_previewWire);
             }
             else
             {
                 _previewWire.UpdatePath(connectionPoint.Value);
-                _previewWire = null;
+                _previewWire = null; 
             }
         }
 
@@ -184,11 +184,10 @@ namespace wpfUI
                 }
             }
         }
-
-        // --- FIXED: Now looks for NodeControl instead of Ellipse ---
+        
         private Point? FindNearestConnectionPoint(Point clickPoint)
         {
-            double tolerance = 10.0;
+            double tolerance = 10.0; 
 
             foreach (var child in SchematicCanvas.Children)
             {
@@ -206,9 +205,9 @@ namespace wpfUI
                         return rightConnectorCenter;
                     }
                 }
-                else if (child is NodeControl node) // Check for the correct control type
+                else if (child is Ellipse node && node.Tag as string == "Node")
                 {
-                    Point nodeCenter = new Point(Canvas.GetLeft(node) + node.ActualWidth / 2, Canvas.GetTop(node) + node.ActualHeight / 2);
+                    Point nodeCenter = new Point(Canvas.GetLeft(node) + node.Width / 2, Canvas.GetTop(node) + node.Height / 2);
                     if ((clickPoint - nodeCenter).Length < tolerance)
                     {
                         return nodeCenter;
