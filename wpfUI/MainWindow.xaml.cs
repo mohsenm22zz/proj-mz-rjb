@@ -42,42 +42,26 @@ namespace wpfUI
         private void DrawGrid()
         {
             double gridSize = 20.0;
-            // Capture all children except for the grid lines themselves to redraw them
             var existingChildren = SchematicCanvas.Children.OfType<UIElement>()
                                         .Where(c => !(c is Line && ((Line)c).StrokeThickness == 1))
                                         .ToList();
 
             SchematicCanvas.Children.Clear();
 
-            // Draw vertical grid lines
             for (double x = 0; x < SchematicCanvas.ActualWidth; x += gridSize)
             {
-                var line = new Line
-                {
-                    X1 = x, Y1 = 0,
-                    X2 = x, Y2 = SchematicCanvas.ActualHeight,
-                    Stroke = new SolidColorBrush(Color.FromArgb(50, 80, 80, 80)),
-                    StrokeThickness = 1
-                };
-                Panel.SetZIndex(line, -10); // Ensure grid is in the background
+                var line = new Line { X1 = x, Y1 = 0, X2 = x, Y2 = SchematicCanvas.ActualHeight, Stroke = new SolidColorBrush(Color.FromArgb(50, 80, 80, 80)), StrokeThickness = 1 };
+                Panel.SetZIndex(line, -10);
                 SchematicCanvas.Children.Add(line);
             }
 
-            // Draw horizontal grid lines
             for (double y = 0; y < SchematicCanvas.ActualHeight; y += gridSize)
             {
-                var line = new Line
-                {
-                    X1 = 0, Y1 = y,
-                    X2 = SchematicCanvas.ActualWidth, Y2 = y,
-                    Stroke = new SolidColorBrush(Color.FromArgb(50, 80, 80, 80)),
-                    StrokeThickness = 1
-                };
-                Panel.SetZIndex(line, -10); // Ensure grid is in the background
+                var line = new Line { X1 = 0, Y1 = y, X2 = SchematicCanvas.ActualWidth, Y2 = y, Stroke = new SolidColorBrush(Color.FromArgb(50, 80, 80, 80)), StrokeThickness = 1 };
+                Panel.SetZIndex(line, -10);
                 SchematicCanvas.Children.Add(line);
             }
 
-            // Re-add components, wires, and nodes
             foreach (var child in existingChildren)
             {
                 SchematicCanvas.Children.Add(child);
@@ -109,25 +93,20 @@ namespace wpfUI
             }
         }
 
+        // --- FIXED: Now uses the proper NodeControl ---
         private void PlaceNode_Click(object sender, RoutedEventArgs e)
         {
-            var nodeVisual = new Ellipse
-            {
-                Width = 8,
-                Height = 8,
-                Fill = Brushes.Cyan,
-                Tag = "Node"
-            };
+            var nodeControl = new NodeControl();
 
             Point position = Mouse.GetPosition(SchematicCanvas);
             double gridSize = 20.0;
             double snappedX = Math.Round(position.X / gridSize) * gridSize;
             double snappedY = Math.Round(position.Y / gridSize) * gridSize;
 
-            Canvas.SetLeft(nodeVisual, snappedX - nodeVisual.Width / 2);
-            Canvas.SetTop(nodeVisual, snappedY - nodeVisual.Height / 2);
+            Canvas.SetLeft(nodeControl, snappedX - nodeControl.Width / 2);
+            Canvas.SetTop(nodeControl, snappedY - nodeControl.Height / 2);
 
-            SchematicCanvas.Children.Add(nodeVisual);
+            SchematicCanvas.Children.Add(nodeControl);
         }
 
         private void PlaceWire_Click(object sender, RoutedEventArgs e)
@@ -206,6 +185,7 @@ namespace wpfUI
             }
         }
 
+        // --- FIXED: Now looks for NodeControl instead of Ellipse ---
         private Point? FindNearestConnectionPoint(Point clickPoint)
         {
             double tolerance = 10.0;
@@ -226,9 +206,9 @@ namespace wpfUI
                         return rightConnectorCenter;
                     }
                 }
-                else if (child is Ellipse node && node.Tag as string == "Node")
+                else if (child is NodeControl node) // Check for the correct control type
                 {
-                    Point nodeCenter = new Point(Canvas.GetLeft(node) + node.Width / 2, Canvas.GetTop(node) + node.Height / 2);
+                    Point nodeCenter = new Point(Canvas.GetLeft(node) + node.ActualWidth / 2, Canvas.GetTop(node) + node.ActualHeight / 2);
                     if ((clickPoint - nodeCenter).Length < tolerance)
                     {
                         return nodeCenter;
