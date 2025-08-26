@@ -1,0 +1,19 @@
+﻿<Window x:Class="wpfUI.DCResultsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="DC Operating Point" SizeToContent="WidthAndHeight" MinWidth="300"
+        WindowStartupLocation="CenterOwner" Background="#F0F0F0">
+    <Grid Margin="10">
+        <StackPanel>
+            <TextBlock Text="DC Operating Point Data:" FontWeight="Bold" Margin="0,0,0,10"/>
+            <ListView x:Name="ResultsListView" MaxHeight="400">
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Header="Measurement" DisplayMemberBinding="{Binding}" Width="Auto"/>
+                    </GridView>
+                </ListView.View>
+            </ListView>
+            <Button Content="OK" Width="75" IsDefault="True" Click="OkButton_Click" HorizontalAlignment="Right" Margin="0,15,0,0"/>
+        </StackPanel>
+    </Grid>
+</Window>

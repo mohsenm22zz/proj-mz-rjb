@@ -17,24 +17,28 @@ namespace wpfUI
         {
             try
             {
-                if (TransientTab.IsSelected)
+                if (DcOpPntTab.IsSelected)
+                {
+                    Parameters.CurrentAnalysis = SimulationParameters.AnalysisType.DCAnalysis;
+                }
+                else if (TransientTab.IsSelected)
                 {
                     Parameters.CurrentAnalysis = SimulationParameters.AnalysisType.Transient;
-                    Parameters.StopTime = double.Parse(StopTimeTextBox.Text);
-                    Parameters.MaxTimestep = double.Parse(MaxTimestepTextBox.Text);
+                    Parameters.StopTime = double.Parse(StopTimeTextBox.Text.Replace("s", ""));
+                    Parameters.MaxTimestep = double.Parse(MaxTimestepTextBox.Text.Replace("ms", "")) / 1000.0;
                 }
                 else if (AcSweepTab.IsSelected)
                 {
                     Parameters.CurrentAnalysis = SimulationParameters.AnalysisType.ACSweep;
                     Parameters.SweepType = ((ComboBoxItem)SweepTypeComboBox.SelectedItem).Content.ToString();
-                    Parameters.StartFrequency = double.Parse(StartFrequencyTextBox.Text);
-                    Parameters.StopFrequency = double.Parse(StopFrequencyTextBox.Text);
+                    Parameters.StartFrequency = double.Parse(StartFrequencyTextBox.Text.Replace("k", "000"));
+                    Parameters.StopFrequency = double.Parse(StopFrequencyTextBox.Text.Replace("k", "000"));
                     Parameters.NumberOfPoints = int.Parse(NumPointsAcTextBox.Text);
                 }
                 else if (PhaseSweepTab.IsSelected)
                 {
                     Parameters.CurrentAnalysis = SimulationParameters.AnalysisType.PhaseSweep;
-                    Parameters.BaseFrequency = double.Parse(BaseFrequencyTextBox.Text);
+                    Parameters.BaseFrequency = double.Parse(BaseFrequencyTextBox.Text.Replace("k", "000"));
                     Parameters.StartPhase = double.Parse(StartPhaseTextBox.Text);
                     Parameters.StopPhase = double.Parse(StopPhaseTextBox.Text);
                     Parameters.NumberOfPoints = int.Parse(NumPointsPhaseTextBox.Text);

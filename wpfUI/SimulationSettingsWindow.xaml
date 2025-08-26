@@ -10,7 +10,12 @@
         </Grid.RowDefinitions>
 
         <TabControl Grid.Row="0">
-            <!-- MODIFIED: Added x:Name to tabs and controls for code-behind access -->
+            <TabItem Header="DC op pnt" x:Name="DcOpPntTab">
+                <Grid Margin="10">
+                    <TextBlock Text="Find the DC operating point of the circuit." VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                </Grid>
+            </TabItem>
+            
             <TabItem Header="Transient" x:Name="TransientTab">
                 <Grid Margin="10">
                     <StackPanel>

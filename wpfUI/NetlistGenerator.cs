@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Shapes;
 
 namespace wpfUI
 {
@@ -18,44 +19,101 @@ namespace wpfUI
             public double AcPhase { get; set; }
         }
 
-        private static Dictionary<Point, string> CreateNodeMap(Canvas canvas)
+        public static Tuple<List<string>, Dictionary<Point, string>> Generate(Canvas canvas)
         {
+            var commands = new List<string>();
+            var allPoints = new HashSet<Point>();
+            var adjacencyList = new Dictionary<Point, List<Point>>();
+            var componentInfos = new List<NetlistComponentInfo>();
             var nodeMap = new Dictionary<Point, string>();
-            var connectionPoints = new List<Point>();
-            int nodeCounter = 1;
+            Point? groundPoint = null;
 
             foreach (var child in canvas.Children.OfType<FrameworkElement>())
             {
                 if (child is ComponentControl component)
                 {
-                    Point leftConnector = component.LeftConnector.TransformToAncestor(canvas).Transform(new Point(component.LeftConnector.ActualWidth / 2, component.LeftConnector.ActualHeight / 2));
-                    Point rightConnector = component.RightConnector.TransformToAncestor(canvas).Transform(new Point(component.RightConnector.ActualWidth / 2, component.RightConnector.ActualHeight / 2));
-                    connectionPoints.Add(leftConnector);
-                    connectionPoints.Add(rightConnector);
+                    Point left = component.LeftConnector.TransformToAncestor(canvas).Transform(new Point(component.LeftConnector.ActualWidth / 2, component.LeftConnector.ActualHeight / 2));
+                    Point right = component.RightConnector.TransformToAncestor(canvas).Transform(new Point(component.RightConnector.ActualWidth / 2, component.RightConnector.ActualHeight / 2));
+                    allPoints.Add(left);
+                    allPoints.Add(right);
                 }
                 else if (child is NodeControl node)
                 {
-                    Point nodeCenter = new Point(Canvas.GetLeft(node) + node.Width / 2, Canvas.GetTop(node) + node.Height / 2);
-                    connectionPoints.Add(nodeCenter);
+                    Point center = new Point(Canvas.GetLeft(node) + node.Width / 2, Canvas.GetTop(node) + node.Height / 2);
+                    allPoints.Add(center);
+                    if (node.Tag as string == "Ground")
+                    {
+                        groundPoint = center;
+                    }
                 }
             }
 
-            var distinctPoints = connectionPoints.Distinct().ToList();
-            foreach (var point in distinctPoints)
+            foreach (var wire in canvas.Children.OfType<Wire>())
             {
-                if (!nodeMap.ContainsKey(point))
+                var pathFigure = (wire.Content as Grid)?.Children.OfType<Path>().FirstOrDefault()?.Data.GetFlattenedPathGeometry().Figures.FirstOrDefault();
+                if (pathFigure != null)
                 {
-                    nodeMap[point] = $"N{nodeCounter++}";
+                    var wirePoints = new List<Point> { pathFigure.StartPoint };
+                    foreach (var segment in pathFigure.Segments.OfType<LineSegment>())
+                    {
+                        wirePoints.Add(segment.Point);
+                    }
+                    
+                    for (int i = 0; i < wirePoints.Count - 1; i++)
+                    {
+                        Point p1 = wirePoints[i];
+                        Point p2 = wirePoints[i + 1];
+                        allPoints.Add(p1);
+                        allPoints.Add(p2);
+
+                        if (!adjacencyList.ContainsKey(p1)) adjacencyList[p1] = new List<Point>();
+                        if (!adjacencyList.ContainsKey(p2)) adjacencyList[p2] = new List<Point>();
+                        adjacencyList[p1].Add(p2);
+                        adjacencyList[p2].Add(p1);
+                    }
                 }
             }
-            return nodeMap;
-        }
 
-        public static List<string> Generate(Canvas canvas)
-        {
-            var commands = new List<string>();
-            var componentInfos = new List<NetlistComponentInfo>();
-            var nodeMap = CreateNodeMap(canvas);
+            var visited = new HashSet<Point>();
+            int nodeCounter = 1;
+            foreach (var startPoint in allPoints)
+            {
+                if (!visited.Contains(startPoint))
+                {
+                    string nodeName = $"N{nodeCounter++}";
+                    var queue = new Queue<Point>();
+                    queue.Enqueue(startPoint);
+                    visited.Add(startPoint);
+
+                    while (queue.Count > 0)
+                    {
+                        var currentPoint = queue.Dequeue();
+                        nodeMap[currentPoint] = nodeName;
+
+                        if (adjacencyList.ContainsKey(currentPoint))
+                        {
+                            foreach (var neighbor in adjacencyList[currentPoint])
+                            {
+                                if (!visited.Contains(neighbor))
+                                {
+                                    visited.Add(neighbor);
+                                    queue.Enqueue(neighbor);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (groundPoint.HasValue && nodeMap.ContainsKey(groundPoint.Value))
+            {
+                string groundNodeName = nodeMap[groundPoint.Value];
+                var pointsToUpdate = nodeMap.Where(kvp => kvp.Value == groundNodeName).Select(kvp => kvp.Key).ToList();
+                foreach (var point in pointsToUpdate)
+                {
+                    nodeMap[point] = "0";
+                }
+            }
 
             foreach (var child in canvas.Children.OfType<ComponentControl>())
             {
@@ -64,31 +122,13 @@ namespace wpfUI
 
                 string leftNode = nodeMap.ContainsKey(leftConnector) ? nodeMap[leftConnector] : "UNCONNECTED";
                 string rightNode = nodeMap.ContainsKey(rightConnector) ? nodeMap[rightConnector] : "UNCONNECTED";
-
-                var info = new NetlistComponentInfo
-                {
-                    Name = child.ComponentName,
-                    Value = child.Value,
-                    AcPhase = child.AcPhase
-                };
-
+                
+                var info = new NetlistComponentInfo { Name = child.ComponentName, Value = child.Value, AcPhase = child.AcPhase };
                 string type = new string(info.Name.TakeWhile(char.IsLetter).ToArray());
-                if (type == "V" || type == "ACV")
-                {
-                    info.Node1 = rightNode;
-                    info.Node2 = leftNode;
-                }
-                else if (type == "I")
-                {
-                    info.Node1 = leftNode;
-                    info.Node2 = rightNode;
-                }
-                else
-                {
-                    info.Node1 = leftNode;
-                    info.Node2 = rightNode;
-                }
 
+                if (type == "V" || type == "ACV") { info.Node1 = rightNode; info.Node2 = leftNode; }
+                else { info.Node1 = leftNode; info.Node2 = rightNode; }
+                
                 componentInfos.Add(info);
             }
 
@@ -101,63 +141,12 @@ namespace wpfUI
                 commands.Add(command);
             }
 
-            string explicitGroundNode = null;
-            foreach (var node in canvas.Children.OfType<NodeControl>())
+            if (nodeMap.ContainsValue("0"))
             {
-                if (node.IsGround)
-                {
-                    Point nodeCenter = new Point(Canvas.GetLeft(node) + node.Width / 2, Canvas.GetTop(node) + node.Height / 2);
-                    if (nodeMap.ContainsKey(nodeCenter))
-                    {
-                        explicitGroundNode = nodeMap[nodeCenter];
-                        break;
-                    }
-                }
+                commands.Add($"GND 0");
             }
 
-            if (explicitGroundNode != null)
-            {
-                commands.Add($"GND {explicitGroundNode}");
-            }
-            else if (nodeMap.Any())
-            {
-                string defaultGround = nodeMap.OrderBy(kvp => kvp.Key.Y).ThenBy(kvp => kvp.Key.X).FirstOrDefault().Value;
-                if (defaultGround != null)
-                {
-                    commands.Add($"GND {defaultGround}");
-                }
-            }
-
-            return commands;
-        }
-
-        // --- FIX: Added the missing FindProbeTarget method ---
-        public static string FindProbeTarget(Canvas canvas, Point clickPoint)
-        {
-            double tolerance = 10.0;
-
-            // Check for components first
-            foreach (var component in canvas.Children.OfType<ComponentControl>())
-            {
-                Point componentPos = component.TransformToAncestor(canvas).Transform(new Point(0, 0));
-                Rect componentBounds = new Rect(componentPos, new Size(component.ActualWidth, component.ActualHeight));
-                if (componentBounds.Contains(clickPoint))
-                {
-                    return $"I({component.ComponentName})"; // Probing a component gives its current
-                }
-            }
-
-            // If not a component, check for a node/wire
-            var nodeMap = CreateNodeMap(canvas);
-            foreach (var entry in nodeMap)
-            {
-                if ((clickPoint - entry.Key).Length < tolerance)
-                {
-                    return entry.Value; // Probing a node/wire gives its voltage
-                }
-            }
-
-            return null; // Nothing found at the click point
+            return new Tuple<List<string>, Dictionary<Point, string>>(commands, nodeMap);
         }
     }
 }
