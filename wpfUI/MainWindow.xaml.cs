@@ -20,7 +20,7 @@ namespace wpfUI
 
         private bool _isWiringMode = false;
         private bool _isCircuitLocked = false;
-        private Wire _previewWire = null;
+        private Wire _currentWire = null;
 
         public MainWindow()
         {
@@ -90,36 +90,26 @@ namespace wpfUI
 
         private void PlaceNode_Click(object sender, RoutedEventArgs e)
         {
-            var nodeVisual = new Ellipse
-            {
-                Width = 8,
-                Height = 8,
-                Fill = Brushes.Cyan,
-                Tag = "Node"
-            };
+            var nodeControl = new NodeControl();
+            nodeControl.Width = 10;
+            nodeControl.Height = 10;
 
-            Point position = Mouse.GetPosition(SchematicCanvas);
+            Point position = new Point(SchematicCanvas.ActualWidth / 2, SchematicCanvas.ActualHeight / 2);
             double gridSize = 20.0;
             double snappedX = Math.Round(position.X / gridSize) * gridSize;
             double snappedY = Math.Round(position.Y / gridSize) * gridSize;
 
-            Canvas.SetLeft(nodeVisual, snappedX - nodeVisual.Width / 2);
-            Canvas.SetTop(nodeVisual, snappedY - nodeVisual.Height / 2);
+            Canvas.SetLeft(nodeControl, snappedX - nodeControl.Width / 2);
+            Canvas.SetTop(nodeControl, snappedY - nodeControl.Height / 2);
 
-            SchematicCanvas.Children.Add(nodeVisual);
+            SchematicCanvas.Children.Add(nodeControl);
         }
 
         private void PlaceWire_Click(object sender, RoutedEventArgs e)
         {
-            // --- MODIFIED: Toggle wiring mode ---
             if (!_isWiringMode)
             {
-                _isWiringMode = true;
-                _isCircuitLocked = true;
-                WireMenuItem.IsChecked = true; // Set the checkmark
-                SchematicCanvas.Cursor = Cursors.Cross;
-                SchematicCanvas.MouseLeftButtonDown += Canvas_Wiring_MouseDown;
-                SchematicCanvas.MouseMove += Canvas_Wiring_MouseMove;
+                EnterWiringMode();
             }
             else
             {
@@ -127,18 +117,43 @@ namespace wpfUI
             }
         }
 
+        private void EnterWiringMode()
+        {
+            _isWiringMode = true;
+            _isCircuitLocked = true;
+            WireMenuItem.IsChecked = true;
+            SchematicCanvas.Cursor = Cursors.Cross;
+            SchematicCanvas.MouseLeftButtonDown += Canvas_Wiring_MouseDown;
+            SchematicCanvas.MouseRightButtonDown += Canvas_Wiring_MouseRightButtonDown;
+            SchematicCanvas.MouseMove += Canvas_Wiring_MouseMove;
+        }
+
         private void ExitWiringMode()
         {
             _isWiringMode = false;
-            WireMenuItem.IsChecked = false; // Remove the checkmark
-            if (_previewWire != null)
+            WireMenuItem.IsChecked = false;
+            if (_currentWire != null)
             {
-                SchematicCanvas.Children.Remove(_previewWire);
-                _previewWire = null;
+                // If the wire is just a single point, remove it
+                if (_currentWire.EndPoint == _currentWire.StartPoint)
+                {
+                    SchematicCanvas.Children.Remove(_currentWire);
+                }
+                _currentWire = null;
             }
             SchematicCanvas.Cursor = Cursors.Arrow;
             SchematicCanvas.MouseLeftButtonDown -= Canvas_Wiring_MouseDown;
+            SchematicCanvas.MouseRightButtonDown -= Canvas_Wiring_MouseRightButtonDown;
             SchematicCanvas.MouseMove -= Canvas_Wiring_MouseMove;
+        }
+
+        private void Canvas_Wiring_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            // Finalize the current wire on right-click
+            if (_isWiringMode)
+            {
+                ExitWiringMode();
+            }
         }
 
         private void Canvas_Wiring_MouseDown(object sender, MouseButtonEventArgs e)
@@ -146,32 +161,44 @@ namespace wpfUI
             if (!_isWiringMode) return;
 
             Point clickPoint = e.GetPosition(SchematicCanvas);
-            Point? connectionPoint = FindNearestConnectionPoint(clickPoint);
+            double gridSize = 20.0;
+            Point snappedPoint = new Point(
+                Math.Round(clickPoint.X / gridSize) * gridSize,
+                Math.Round(clickPoint.Y / gridSize) * gridSize
+            );
 
-            if (connectionPoint == null) return;
-
-            if (_previewWire == null)
+            if (_currentWire == null)
             {
-                _previewWire = new Wire
-                {
-                    StartPoint = connectionPoint.Value,
-                };
-                _previewWire.UpdatePath(connectionPoint.Value); 
-                SchematicCanvas.Children.Add(_previewWire);
+                // Start a new wire
+                _currentWire = new Wire();
+                _currentWire.StartPoint = snappedPoint;
+                _currentWire.AddPoint(snappedPoint);
+                SchematicCanvas.Children.Add(_currentWire);
             }
             else
             {
-                _previewWire.UpdatePath(connectionPoint.Value);
-                _previewWire = null; 
+                // Add a new segment to the existing wire
+                _currentWire.AddPoint(snappedPoint);
+            }
+
+            // If the click point is on a connection point, end the wire
+            if (FindNearestConnectionPoint(clickPoint) != null && _currentWire.StartPoint != snappedPoint)
+            {
+                ExitWiringMode();
             }
         }
 
         private void Canvas_Wiring_MouseMove(object sender, MouseEventArgs e)
         {
-            if (_isWiringMode && _previewWire != null)
+            if (_isWiringMode && _currentWire != null)
             {
                 Point currentPoint = e.GetPosition(SchematicCanvas);
-                _previewWire.UpdatePath(currentPoint);
+                double gridSize = 20.0;
+                Point snappedPoint = new Point(
+                    Math.Round(currentPoint.X / gridSize) * gridSize,
+                    Math.Round(currentPoint.Y / gridSize) * gridSize
+                );
+                _currentWire.UpdatePreview(snappedPoint);
             }
         }
 
@@ -206,7 +233,7 @@ namespace wpfUI
                         return rightConnectorCenter;
                     }
                 }
-                else if (child is Ellipse node && node.Tag as string == "Node")
+                else if (child is NodeControl node)
                 {
                     Point nodeCenter = new Point(Canvas.GetLeft(node) + node.Width / 2, Canvas.GetTop(node) + node.Height / 2);
                     if ((clickPoint - nodeCenter).Length < tolerance)
@@ -225,12 +252,16 @@ namespace wpfUI
 
         private void EditSimulationCmd_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("Simulation Settings dialog would open here.", "Edit Simulation Command");
+            var settingsWindow = new SimulationSettingsWindow();
+            settingsWindow.Owner = this;
+            settingsWindow.ShowDialog();
         }
 
         private void RunAnalysis_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("Analysis would run based on the schematic on the canvas.", "Run Analysis");
+            var plotWindow = new PlotWindow();
+            plotWindow.Owner = this;
+            plotWindow.Show();
         }
     }
 }

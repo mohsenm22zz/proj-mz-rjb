@@ -6,6 +6,7 @@
              mc:Ignorable="d" 
              d:DesignHeight="10" d:DesignWidth="10">
     <Grid>
-        <Ellipse Width="8" Height="8" Fill="Cyan"/>
+        <!-- MODIFIED: Changed Ellipse to a white Rectangle -->
+        <Rectangle Width="8" Height="8" Fill="White"/>
     </Grid>
 </UserControl>

@@ -10,7 +10,6 @@ namespace wpfUI
         private Path _wirePath;
         private PathGeometry _pathGeometry;
         private PathFigure _pathFigure;
-        // --- MODIFIED: Use a PolyLineSegment for multiple points ---
         private PolyLineSegment _polyLineSegment;
 
         public Point StartPoint
@@ -19,7 +18,6 @@ namespace wpfUI
             set { _pathFigure.StartPoint = value; }
         }
 
-        // The EndPoint is now the last point in our collection
         public Point EndPoint
         {
             get { return _polyLineSegment.Points.Count > 0 ? _polyLineSegment.Points[_polyLineSegment.Points.Count - 1] : StartPoint; }
@@ -38,10 +36,11 @@ namespace wpfUI
 
         public Wire()
         {
-            // --- MODIFIED: Setup for PolyLineSegment ---
             _polyLineSegment = new PolyLineSegment();
-            _pathFigure = new PathFigure(new Point(0, 0), new[] { _polyLineSegment }, false);
-            _pathGeometry = new PathGeometry(new[] { _pathFigure });
+            _pathFigure = new PathFigure { IsClosed = false };
+            _pathFigure.Segments.Add(_polyLineSegment);
+            _pathGeometry = new PathGeometry();
+            _pathGeometry.Figures.Add(_pathFigure);
             _wirePath = new Path
             {
                 Data = _pathGeometry,
@@ -53,31 +52,57 @@ namespace wpfUI
             Panel.SetZIndex(this, -1);
         }
 
-        // --- NEW: Method to update the wire's shape for right-angled drawing ---
-        public void UpdatePath(Point newEndPoint)
+        public void AddPoint(Point newPoint)
         {
-            Point start = this.StartPoint;
+            Point lastPoint = EndPoint;
+
+            double deltaX = System.Math.Abs(newPoint.X - lastPoint.X);
+            double deltaY = System.Math.Abs(newPoint.Y - lastPoint.Y);
+
+            // Add an intermediate point to enforce right angles
+            if (_polyLineSegment.Points.Count > 0)
+            {
+                 if (deltaX > deltaY) // Prefer horizontal segment
+                {
+                    _polyLineSegment.Points.Add(new Point(newPoint.X, lastPoint.Y));
+                }
+                else // Prefer vertical segment
+                {
+                    _polyLineSegment.Points.Add(new Point(lastPoint.X, newPoint.Y));
+                }
+            }
+            _polyLineSegment.Points.Add(newPoint);
+        }
+
+        public void UpdatePreview(Point previewPoint)
+        {
+            // Remove the last point if it's a preview point
+            if (_polyLineSegment.Points.Count > 1 && _polyLineSegment.Points[_polyLineSegment.Points.Count - 2] == _polyLineSegment.Points[_polyLineSegment.Points.Count - 1])
+            {
+                 _polyLineSegment.Points.RemoveAt(_polyLineSegment.Points.Count - 1);
+            }
+            
+            Point lastPoint = EndPoint;
+            double deltaX = System.Math.Abs(previewPoint.X - lastPoint.X);
+            double deltaY = System.Math.Abs(previewPoint.Y - lastPoint.Y);
+
             Point elbowPoint;
-
-            // Determine if the first segment is horizontal or vertical
-            double deltaX = System.Math.Abs(newEndPoint.X - start.X);
-            double deltaY = System.Math.Abs(newEndPoint.Y - start.Y);
-
             if (deltaX > deltaY) // Horizontal segment first
             {
-                elbowPoint = new Point(newEndPoint.X, start.Y);
+                elbowPoint = new Point(previewPoint.X, lastPoint.Y);
             }
             else // Vertical segment first
             {
-                elbowPoint = new Point(start.X, newEndPoint.Y);
+                elbowPoint = new Point(lastPoint.X, previewPoint.Y);
             }
 
-            // Update the points for the polyline
-            _polyLineSegment.Points.Clear();
-            _polyLineSegment.Points.Add(elbowPoint);
-            _polyLineSegment.Points.Add(newEndPoint);
+            // Temporarily add the elbow and the final preview point
+            if (_polyLineSegment.Points.Count > 0)
+            {
+                _polyLineSegment.Points[_polyLineSegment.Points.Count - 1] = elbowPoint;
+                _polyLineSegment.Points.Add(previewPoint);
+            }
         }
-
 
         private void UpdateVisualState()
         {
