@@ -68,6 +68,7 @@ namespace wpfUI
 
         private void AddComponent_Click(object sender, RoutedEventArgs e)
         {
+            // remove later
             if (_isCircuitLocked)
             {
                 MessageBox.Show("Cannot add new components while circuit is wired.", "Circuit Locked");

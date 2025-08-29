@@ -1,17 +1,18 @@
-﻿#pragma once
+﻿#ifndef ACVOLTAGESOURCE_H
+#define ACVOLTAGESOURCE_H
 
-#include "VoltageSource.h"
-#include <complex>
+#include "Component.h"
+#include "Node.h"
 
-class ACVoltageSource : public VoltageSource {
+class ACVoltageSource : public Component {
 public:
-    double acMagnitude;
-    double acPhase; //radian
-    ACVoltageSource() : acMagnitude(1.0), acPhase(0.0) {
-    }
+    double magnitude = 0.0;
+    double frequency = 0.0;
+    double phase = 0.0;
+    Node* node1 = nullptr;
+    Node* node2 = nullptr;
 
-    // Returns the complex phasor value for AC analysis
-    std::complex<double> getPhasor() const {
-        return std::polar(acMagnitude, acPhase);
-    }
+    double getValue(double time) const;
 };
+
+#endif

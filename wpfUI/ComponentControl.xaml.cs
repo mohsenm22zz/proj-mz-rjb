@@ -28,8 +28,8 @@ namespace wpfUI
                 string name = e.NewValue.ToString();
                 if (name.StartsWith("R")) control.Value = 1000;
                 if (name.StartsWith("V")) control.Value = 5;
-                if (name.StartsWith("C")) control.Value = 1e-6;
-                if (name.StartsWith("L")) control.Value = 1e-3;
+                if (name.StartsWith("C")) control.Value = 0.000001;
+                if (name.StartsWith("L")) control.Value = 0.001;
                 if (name.StartsWith("ACV")) control.Value = 1;
             }
         }
