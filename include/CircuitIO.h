@@ -6,17 +6,17 @@
 #include <vector>
 #include <memory>
 
-// A structure to hold the graphical information of the circuit
+using namespace std;
+
 struct GraphicalCircuit {
-    std::vector<std::shared_ptr<Component>> components;
-    // Wires can be represented by a list of start and end points
-    std::vector<std::pair<std::pair<double, double>, std::pair<double, double>>> wires;
+    vector<shared_ptr<Component>> components;=
+    vector<pair<pair<double, double>, pair<double, double>>> wires;
 };
 
 class CircuitIO {
 public:
-    static std::string generateNetlist(const GraphicalCircuit& gCircuit);
-    static Circuit createCircuitFromNetlist(const std::string& netlist);
+    static string generateNetlist(const GraphicalCircuit& gCircuit);
+    static Circuit createCircuitFromNetlist(const string& netlist);
 };
 
-#endif // CIRCUITIO_H
+#endif

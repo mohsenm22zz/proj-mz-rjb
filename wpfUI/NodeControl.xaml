@@ -1,5 +1,4 @@
-﻿<!-- mohsenm22zz/proj-mz-rjb/proj-mz-rjb-1b949d5aa204b9f590a1c5f0644f3424cf2a70ce/wpfUI/NodeControl.xaml -->
-<UserControl x:Class="wpfUI.NodeControl"
+﻿<UserControl x:Class="wpfUI.NodeControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 

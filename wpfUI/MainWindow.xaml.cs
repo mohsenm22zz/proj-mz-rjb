@@ -1,5 +1,3 @@
-// mohsenm22zz/proj-mz-rjb/proj-mz-rjb-e850e6c0f7d11e5661819e4f80ff5ef06a6db456/wpfUI/MainWindow.xaml.cs
-
 using System;
 using System.Collections.Generic;
 using System.Linq;

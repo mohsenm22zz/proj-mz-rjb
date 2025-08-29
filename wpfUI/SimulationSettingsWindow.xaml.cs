@@ -1,6 +1,4 @@
-﻿// mohsenm22zz/proj-mz-rjb/proj-mz-rjb-e850e6c0f7d11e5661819e4f80ff5ef06a6db456/wpfUI/SimulationSettingsWindow.xaml.cs
-
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 
 namespace wpfUI
@@ -19,10 +17,8 @@ namespace wpfUI
         {
             try
             {
-                // --- FIX: Corrected the name of the TabItem to match the XAML file ---
                 if (DCOperatingPointTab.IsSelected)
                 {
-                    // --- FIX: Corrected the enum value to match the definition in SimulationParameters.cs ---
                     Parameters.CurrentAnalysis = SimulationParameters.AnalysisType.DCOperatingPoint;
                 }
                 else if (TransientTab.IsSelected)
