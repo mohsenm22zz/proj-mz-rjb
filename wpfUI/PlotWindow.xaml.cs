@@ -32,9 +32,11 @@ namespace wpfUI
                     Tuple<double[], double[]> history = simulator.GetComponentCurrentHistory(componentName);
                     if (history.Item1.Length > 1)
                     {
-                        double sampleRate = 1.0 / (history.Item1[1] - history.Item1[0]);
-                        var signalPlot = WpfPlot1.Plot.Add.Signal(history.Item2, sampleRate);
-                        signalPlot.LegendText = $"I({componentName})";
+                        // Use Add.Scatter instead of Add.Signal to properly handle X and Y data
+                        var scatterPlot = WpfPlot1.Plot.Add.ScatterLine(history.Item1, history.Item2);
+                        scatterPlot.MarkerSize = 0; // Hide markers, only show lines
+                        scatterPlot.LineWidth = 2;
+                        scatterPlot.LegendText = $"I({componentName})";
                         hasCurrentData = true;
                     }
                 }
@@ -43,9 +45,11 @@ namespace wpfUI
                     Tuple<double[], double[]> history = simulator.GetNodeVoltageHistory(item);
                     if (history.Item1.Length > 1)
                     {
-                        double sampleRate = 1.0 / (history.Item1[1] - history.Item1[0]);
-                        var signalPlot = WpfPlot1.Plot.Add.Signal(history.Item2, sampleRate);
-                        signalPlot.LegendText = $"V({item})";
+                        // Use Add.Scatter instead of Add.Signal to properly handle X and Y data
+                        var scatterPlot = WpfPlot1.Plot.Add.ScatterLine(history.Item1, history.Item2);
+                        scatterPlot.MarkerSize = 0; // Hide markers, only show lines
+                        scatterPlot.LineWidth = 2;
+                        scatterPlot.LegendText = $"V({item})";
                         hasVoltageData = true;
                     }
                 }

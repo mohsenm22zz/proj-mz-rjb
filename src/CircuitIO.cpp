@@ -28,7 +28,6 @@ std::string CircuitIO::generateNetlist(const GraphicalCircuit& gCircuit) {
     }
 
     for (const auto& comp : gCircuit.components) {
-        // For simplicity, assuming components are 40x40 and centered
         double x = comp->x;
         double y = comp->y;
         int node1 = getNode(x - 20, y);

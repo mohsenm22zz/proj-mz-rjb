@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 # Create a shared library (DLL on Windows)
 add_library(CircuitSimulator SHARED
+    src/ACVoltageSource.cpp
     src/Analysis.cpp
     src/Capacitor.cpp
     src/Circuit.cpp

@@ -93,6 +93,12 @@ namespace wpfUI
             return new string[0];
         }
 
+        /// <summary>
+        /// Gets the voltage history for a node
+        /// Returns a tuple with Item1 = time points array, Item2 = voltage values array
+        /// </summary>
+        /// <param name="nodeName">Name of the node</param>
+        /// <returns>Tuple with time points and voltage values</returns>
         public Tuple<double[], double[]> GetNodeVoltageHistory(string nodeName)
         {
             const int maxPoints = 2000;
@@ -104,6 +110,12 @@ namespace wpfUI
             return Tuple.Create(timePoints, voltages);
         }
 
+        /// <summary>
+        /// Gets the current history for a component
+        /// Returns a tuple with Item1 = time points array, Item2 = current values array
+        /// </summary>
+        /// <param name="componentName">Name of the component</param>
+        /// <returns>Tuple with time points and current values</returns>
         public Tuple<double[], double[]> GetComponentCurrentHistory(string componentName)
         {
             const int maxPoints = 2000;

@@ -133,7 +133,17 @@ void transientAnalysis(Circuit& circuit, double t_step, double t_stop) {
         }
     }
 
-    for (double t = 0; t <= t_stop; t += t_step) {
+    // Add initial conditions at t=0
+    for (auto* node : circuit.nodes) {
+        if (!node->isGround) {
+            node->addVoltageHistoryPoint(0.0, node->getVoltage());
+        }
+    }
+    for (auto& vs : circuit.voltageSources) {
+        vs.addCurrentHistoryPoint(0.0, vs.getCurrent());
+    }
+
+    for (double t = t_step; t <= t_stop; t += t_step) {
         const int MAX_DIODE_ITERATIONS = 100;
         const double EPSILON_CURRENT = 1e-9;
         bool converged = false;
@@ -286,12 +296,9 @@ void dcSweepAnalysis(Circuit& circuit, const string& sourceName, double start, d
     }
 }
 
-// --- NEW ---
-// Implementation for AC Sweep Analysis
 void acSweepAnalysis(Circuit& circuit, const std::string& sourceName, double start_freq, double stop_freq, int num_points, const std::string& sweep_type) {
     cout << "// Performing AC Sweep Analysis..." << endl;
-    circuit.clearComponentHistory(); // Clear previous results
-
+    circuit.clearComponentHistory();
     ACVoltageSource* acSource = circuit.findACVoltageSource(sourceName);
     if (!acSource) {
         cerr << "Error: AC source '" << sourceName << "' not found for sweep." << endl;
@@ -304,8 +311,6 @@ void acSweepAnalysis(Circuit& circuit, const std::string& sourceName, double sta
             nonGroundNodes.push_back(node);
         }
     }
-
-    // Loop through each frequency point
     for (int i = 0; i < num_points; ++i) {
         double current_freq;
         // For now, we only implement linear sweep as an example

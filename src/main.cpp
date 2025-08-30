@@ -16,7 +16,7 @@ double stonum(const string &s);
 void clrscrr();
 
 int main() {
-    //test_solver();
+    /*//test_solver();
     while (true) {
         Circuit circuit;
         string line;
@@ -181,6 +181,6 @@ int main() {
             }
         }
         cout << "\nSimulation finished. Circuit cleared." << endl;
-    }
+    }*/
     return 0;
 }
