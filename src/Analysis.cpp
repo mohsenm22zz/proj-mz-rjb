@@ -29,6 +29,9 @@ void dcAnalysis(Circuit& circuit) {
         diode.setState(STATE_OFF);
     }
 
+    // Create a copy of the MNA_A matrix for reuse
+    vector<vector<double>> a_matrix_copy;
+
     do {
         converged = true;
         iteration_count++;
@@ -39,12 +42,17 @@ void dcAnalysis(Circuit& circuit) {
         }
 
         circuit.assignDiodeBranchIndices();
-        circuit.set_MNA_A();
-        circuit.set_MNA_RHS();
+        circuit.set_MNA_A(AnalysisType::DC);
+        circuit.set_MNA_RHS(AnalysisType::DC);
 
         if (circuit.MNA_A.empty() || circuit.MNA_A[0].empty() || circuit.MNA_RHS.empty() || circuit.MNA_A.size() != circuit.MNA_RHS.size()) {
             cout << "// No solvable MNA system for the current circuit state." << endl;
             break;
+        }
+
+        // Save a copy of the A matrix for later reuse in sweeps
+        if (a_matrix_copy.empty()) {
+            a_matrix_copy = circuit.MNA_A;
         }
 
         vector<double> solved_solution;
@@ -159,8 +167,8 @@ void transientAnalysis(Circuit& circuit, double t_step, double t_stop) {
             }
 
             circuit.assignDiodeBranchIndices();
-            circuit.set_MNA_A();
-            circuit.set_MNA_RHS();
+            circuit.set_MNA_A(AnalysisType::TRANSIENT);
+            circuit.set_MNA_RHS(AnalysisType::TRANSIENT);
 
             vector<double> solved_solution;
             try {
@@ -269,21 +277,48 @@ void result_from_vec(Circuit& circuit, const vector<double>& solvedVoltages, con
 }
 
 void dcSweepAnalysis(Circuit& circuit, const string& sourceName, double start, double end, double step) {
-    Component* sweepSourceComponent = nullptr;
+    Component* sweepSource = nullptr;
     char sourceType = toupper(sourceName[0]);
-    if (sourceType == 'V') sweepSourceComponent = circuit.findVoltageSource(sourceName);
-    else if (sourceType == 'I') sweepSourceComponent = circuit.findCurrentSource(sourceName);
+    if (sourceType == 'V') sweepSource = circuit.findVoltageSource(sourceName);
+    else if (sourceType == 'I') sweepSource = circuit.findCurrentSource(sourceName);
 
-    if (!sweepSourceComponent) {
+    if (!sweepSource) {
         cerr << "Error: Sweep source '" << sourceName << "' not found." << endl;
         return;
     }
 
-    for (double value = start; value <= end; value += step) {
-        if (sourceType == 'V') static_cast<VoltageSource*>(sweepSourceComponent)->value = value;
-        else if (sourceType == 'I') static_cast<CurrentSource*>(sweepSourceComponent)->value = value;
+    double originalValue = 0.0;
+    if (sourceType == 'V') originalValue = static_cast<VoltageSource*>(sweepSource)->value;
+    else if (sourceType == 'I') originalValue = static_cast<CurrentSource*>(sweepSource)->value;
 
-        dcAnalysis(circuit);
+    // Perform initial DC analysis to get the base MNA_A matrix
+    dcAnalysis(circuit);
+    
+    // Save a copy of the A matrix for reuse in sweeps
+    vector<vector<double>> a_matrix_copy = circuit.MNA_A;
+
+    vector<Node*> nonGroundNodes;
+    for (auto* node : circuit.nodes) {
+        if (!node->isGround) {
+            nonGroundNodes.push_back(node);
+        }
+    }
+
+    for (double value = start; value <= end; value += step) {
+        if (sourceType == 'V') static_cast<VoltageSource*>(sweepSource)->value = value;
+        else if (sourceType == 'I') static_cast<CurrentSource*>(sweepSource)->value = value;
+        
+        circuit.set_MNA_RHS(AnalysisType::DC); 
+
+        vector<double> solved_solution;
+        try {
+            solved_solution = gaussianElimination(a_matrix_copy, circuit.MNA_RHS);
+        } catch (const exception& e) {
+            cerr << "Error during Gaussian Elimination at sweep value " << value << ": " << e.what() << endl;
+            continue;
+        }
+
+        result_from_vec(circuit, solved_solution, nonGroundNodes);
 
         for (auto* node : circuit.nodes) {
             if (!node->isGround) {
@@ -294,11 +329,17 @@ void dcSweepAnalysis(Circuit& circuit, const string& sourceName, double start, d
             vs.dc_sweep_current_history.push_back({value, vs.getCurrent()});
         }
     }
+    
+    // Restore original value
+    if (sourceType == 'V') static_cast<VoltageSource*>(sweepSource)->value = originalValue;
+    else if (sourceType == 'I') static_cast<CurrentSource*>(sweepSource)->value = originalValue;
+    cout << "// DC Sweep Analysis complete." << endl;
 }
 
 void acSweepAnalysis(Circuit& circuit, const std::string& sourceName, double start_freq, double stop_freq, int num_points, const std::string& sweep_type) {
     cout << "// Performing AC Sweep Analysis..." << endl;
     circuit.clearComponentHistory();
+
     ACVoltageSource* acSource = circuit.findACVoltageSource(sourceName);
     if (!acSource) {
         cerr << "Error: AC source '" << sourceName << "' not found for sweep." << endl;
@@ -311,19 +352,22 @@ void acSweepAnalysis(Circuit& circuit, const std::string& sourceName, double sta
             nonGroundNodes.push_back(node);
         }
     }
+    
+    if (num_points < 2) num_points = 2;
+
     for (int i = 0; i < num_points; ++i) {
         double current_freq;
-        // For now, we only implement linear sweep as an example
-        // A full implementation would handle logarithmic sweeps (Decade/Octave)
-        current_freq = start_freq + i * (stop_freq - start_freq) / (num_points - 1);
-        
-        if (current_freq == 0) continue; // Avoid division by zero for C/L
+        if (sweep_type == "Logarithmic") {
+            current_freq = start_freq * pow(stop_freq / start_freq, (double)i / (double)(num_points - 1));
+        } else { // Default to Linear
+             current_freq = start_freq + i * (stop_freq - start_freq) / (double)(num_points - 1);
+        }
+       
+        if (current_freq <= 1e-9) continue; 
 
-        // 1. Build the complex MNA matrices for the current frequency
         circuit.set_MNA_A(AnalysisType::AC_SWEEP, current_freq);
         circuit.set_MNA_RHS(AnalysisType::AC_SWEEP, current_freq);
 
-        // 2. Solve the complex system of equations
         vector<complex<double>> solution;
         try {
             solution = gaussianElimination(circuit.MNA_A_Complex, circuit.MNA_RHS_Complex);
@@ -334,8 +378,10 @@ void acSweepAnalysis(Circuit& circuit, const std::string& sourceName, double sta
 
         // 3. Store the results (magnitude of voltage/current)
         for (size_t j = 0; j < nonGroundNodes.size(); ++j) {
-            double magnitude = abs(solution[j]);
-            nonGroundNodes[j]->ac_sweep_history.push_back({current_freq, magnitude});
+            if (j < solution.size()) {
+                double magnitude = abs(solution[j]);
+                nonGroundNodes[j]->ac_sweep_history.push_back({current_freq, magnitude});
+            }
         }
         // You would also store current magnitudes for components here
     }
@@ -346,11 +392,53 @@ void acSweepAnalysis(Circuit& circuit, const std::string& sourceName, double sta
 // --- NEW (Skeleton) ---
 // Implementation for Phase Sweep would be similar
 void phaseSweepAnalysis(Circuit& circuit, const std::string& sourceName, double base_freq, double start_phase, double stop_phase, int num_points) {
-    cout << "// Performing Phase Sweep Analysis (Not fully implemented)..." << endl;
-    // The logic would be very similar to acSweepAnalysis:
-    // 1. Loop from start_phase to stop_phase.
-    // 2. In each iteration, update the phase of the source component.
-    // 3. Re-build the MNA_RHS_Complex matrix (MNA_A_Complex doesn't change if only phase is swept).
-    // 4. Solve the system.
-    // 5. Store the magnitude of the result vs. the phase.
+    cout << "// Performing Phase Sweep Analysis..." << endl;
+    circuit.clearComponentHistory();
+    ACVoltageSource* acSource = circuit.findACVoltageSource(sourceName);
+    if (!acSource) {
+        cerr << "Error: AC source '" << sourceName << "' not found for sweep." << endl;
+        return;
+    }
+    
+    vector<Node*> nonGroundNodes;
+    for (auto* node : circuit.nodes) {
+        if (!node->isGround) {
+            nonGroundNodes.push_back(node);
+        }
+    }
+
+    if (num_points < 2) num_points = 2;
+    if (base_freq <= 1e-9) {
+        cerr << "Error: Base frequency for phase sweep must be positive." << endl;
+        return;
+    }
+
+    circuit.set_MNA_A(AnalysisType::AC_SWEEP, base_freq);
+
+    double originalPhase = acSource->phase;
+
+    for (int i = 0; i < num_points; ++i) {
+        double current_phase = start_phase + i * (stop_phase - start_phase) / (double)(num_points - 1);
+        acSource->phase = current_phase;
+
+        circuit.set_MNA_RHS(AnalysisType::AC_SWEEP, base_freq);
+
+        vector<complex<double>> solution;
+        try {
+            solution = gaussianElimination(circuit.MNA_A_Complex, circuit.MNA_RHS_Complex);
+        } catch (const exception& e) {
+            cerr << "Error during Phase analysis at phase " << current_phase << " deg: " << e.what() << endl;
+            continue;
+        }
+
+        for (size_t j = 0; j < nonGroundNodes.size(); ++j) {
+             if (j < solution.size()) {
+                double magnitude = abs(solution[j]);
+                nonGroundNodes[j]->phase_sweep_history.push_back({current_phase, magnitude});
+             }
+        }
+    }
+    
+    acSource->phase = originalPhase; 
+    cout << "// Phase Sweep Analysis complete." << endl;
 }

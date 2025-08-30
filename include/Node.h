@@ -15,6 +15,7 @@ public:
     vector<pair<double, double>> voltage_history;
     vector<pair<double, double>> dc_sweep_history;
     vector<pair<double, double>> ac_sweep_history;
+    vector<pair<double, double>> phase_sweep_history;
 
     Node();
     double getVoltage() const;
@@ -24,3 +25,4 @@ public:
     void addVoltageHistoryPoint(double time, double vol);
     void clearHistory();
 };
+

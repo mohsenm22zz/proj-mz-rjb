@@ -30,14 +30,6 @@ Node *Circuit::findNode(const string &find_from_name) {
     return nullptr;
 }
 
-Node *Circuit::findNodeByNum(int num_to_find) {
-    for (Node *node: nodes) {
-        if (node->num == num_to_find) {
-            return node;
-        }
-    }
-    return nullptr;
-}
 
 Node *Circuit::findOrCreateNode(const string &name) {
     Node *node = findNode(name);
@@ -156,149 +148,182 @@ void Circuit::assignDiodeBranchIndices() {
 }
 
 vector<vector<double>> Circuit::G() {
-    int num_non_gnd_nodes = countNonGroundNodes();
-    vector<vector<double>> g_matrix(num_non_gnd_nodes, vector<double>(num_non_gnd_nodes, 0.0));
-
-    for (const auto &res: resistors) {
-        if (res.resistance == 0) continue;
-        double conductance = 1.0 / res.resistance;
-        int idx1 = getNodeMatrixIndex(res.node1);
-        int idx2 = getNodeMatrixIndex(res.node2);
-        if (idx1 != -1) g_matrix[idx1][idx1] += conductance;
-        if (idx2 != -1) g_matrix[idx2][idx2] += conductance;
-        if (idx1 != -1 && idx2 != -1) {
-            g_matrix[idx1][idx2] -= conductance;
-            g_matrix[idx2][idx1] -= conductance;
-        }
-    }
-
-    if (delta_t > 0) {
-        for (const auto &cap: capacitors) {
-            double equiv_conductance = cap.capacitance / delta_t;
-            int idx1 = getNodeMatrixIndex(cap.node1);
-            int idx2 = getNodeMatrixIndex(cap.node2);
-            if (idx1 != -1) g_matrix[idx1][idx1] += equiv_conductance;
-            if (idx2 != -1) g_matrix[idx2][idx2] += equiv_conductance;
-            if (idx1 != -1 && idx2 != -1) {
-                g_matrix[idx1][idx2] -= equiv_conductance;
-                g_matrix[idx2][idx1] -= equiv_conductance;
+    int n = countNonGroundNodes();
+    vector<vector<double>> result(n, vector<double>(n, 0.0));
+    
+    // Resistors contribute to G matrix
+    for (const auto& res : resistors) {
+        int n1_index = getNodeMatrixIndex(res.node1);
+        int n2_index = getNodeMatrixIndex(res.node2);
+        
+        if (n1_index != -1 && n2_index != -1) {
+            double g = 1.0 / res.resistance;
+            if (n1_index == n2_index) continue; // Skip if both terminals on same node
+            
+            if (n1_index != -1) {
+                result[n1_index][n1_index] += g;
+            }
+            if (n2_index != -1) {
+                result[n2_index][n2_index] += g;
+            }
+            if (n1_index != -1 && n2_index != -1) {
+                result[n1_index][n2_index] -= g;
+                result[n2_index][n1_index] -= g;
             }
         }
     }
-    return g_matrix;
+    
+    return result;
 }
 
 vector<vector<double>> Circuit::B() {
-    int num_non_gnd_nodes = countNonGroundNodes();
-    int m_vars = countTotalExtraVariables();
-    if (m_vars == 0) return {};
-
-    vector<vector<double>> b_matrix(num_non_gnd_nodes, vector<double>(m_vars, 0.0));
-
-    for (size_t j = 0; j < voltageSources.size(); ++j) {
-        int p_node_idx = getNodeMatrixIndex(voltageSources[j].node1);
-        int n_node_idx = getNodeMatrixIndex(voltageSources[j].node2);
-        if (p_node_idx != -1) b_matrix[p_node_idx][j] = 1.0;
-        if (n_node_idx != -1) b_matrix[n_node_idx][j] = -1.0;
-    }
-
-    for (size_t k = 0; k < inductors.size(); ++k) {
-        int inductor_current_col = voltageSources.size() + k;
-        int idx1 = getNodeMatrixIndex(inductors[k].node1);
-        int idx2 = getNodeMatrixIndex(inductors[k].node2);
-        if (idx1 != -1) b_matrix[idx1][inductor_current_col] = 1.0;
-        if (idx2 != -1) b_matrix[idx2][inductor_current_col] = -1.0;
-    }
-
-    for (const auto& d : diodes) {
-        if (d.getState() == STATE_FORWARD_ON || d.getState() == STATE_REVERSE_ON) {
-            int diode_current_col = d.getBranchIndex();
-            int idx1 = getNodeMatrixIndex(d.node1);
-            int idx2 = getNodeMatrixIndex(d.node2);
-            if (idx1 != -1) b_matrix[idx1][diode_current_col] = 1.0;
-            if (idx2 != -1) b_matrix[idx2][diode_current_col] = -1.0;
+    int n = countNonGroundNodes();
+    int extra_vars = countTotalExtraVariables();
+    vector<vector<double>> result(n, vector<double>(extra_vars, 0.0));
+    
+    // Voltage sources contribute to B matrix
+    for (size_t i = 0; i < voltageSources.size(); ++i) {
+        const auto& vs = voltageSources[i];
+        int n1_index = getNodeMatrixIndex(vs.node1);
+        int n2_index = getNodeMatrixIndex(vs.node2);
+        int vs_index = i;
+        
+        if (n1_index != -1) {
+            result[n1_index][vs_index] = 1.0;
+        }
+        if (n2_index != -1) {
+            result[n2_index][vs_index] = -1.0;
         }
     }
-    return b_matrix;
+    
+    // Inductors contribute to B matrix
+    for (size_t i = 0; i < inductors.size(); ++i) {
+        const auto& ind = inductors[i];
+        int n1_index = getNodeMatrixIndex(ind.node1);
+        int n2_index = getNodeMatrixIndex(ind.node2);
+        int ind_index = voltageSources.size() + i;
+        
+        if (n1_index != -1) {
+            result[n1_index][ind_index] = 1.0;
+        }
+        if (n2_index != -1) {
+            result[n2_index][ind_index] = -1.0;
+        }
+    }
+    
+    return result;
 }
 
 vector<vector<double>> Circuit::C() {
-    vector<vector<double>> b_mat = B();
-    if (b_mat.empty() || b_mat[0].empty()) return {};
-    int n_rows_b = b_mat.size();
-    int n_cols_b = b_mat[0].size();
-    vector<vector<double>> c_matrix(n_cols_b, vector<double>(n_rows_b, 0.0));
-    for (int i = 0; i < n_cols_b; i++) {
-        for (int j = 0; j < n_rows_b; ++j) {
-            c_matrix[i][j] = b_mat[j][i];
+    int n = countNonGroundNodes();
+    int extra_vars = countTotalExtraVariables();
+    vector<vector<double>> result(extra_vars, vector<double>(n, 0.0));
+    
+    // Voltage sources contribute to C matrix (transpose of B)
+    for (size_t i = 0; i < voltageSources.size(); ++i) {
+        const auto& vs = voltageSources[i];
+        int n1_index = getNodeMatrixIndex(vs.node1);
+        int n2_index = getNodeMatrixIndex(vs.node2);
+        int vs_index = i;
+        
+        if (n1_index != -1) {
+            result[vs_index][n1_index] = 1.0;
+        }
+        if (n2_index != -1) {
+            result[vs_index][n2_index] = -1.0;
         }
     }
-    return c_matrix;
+    
+    // Inductors contribute to C matrix (transpose of B)
+    for (size_t i = 0; i < inductors.size(); ++i) {
+        const auto& ind = inductors[i];
+        int n1_index = getNodeMatrixIndex(ind.node1);
+        int n2_index = getNodeMatrixIndex(ind.node2);
+        int ind_index = voltageSources.size() + i;
+        
+        if (n1_index != -1) {
+            result[ind_index][n1_index] = 1.0;
+        }
+        if (n2_index != -1) {
+            result[ind_index][n2_index] = -1.0;
+        }
+    }
+    
+    return result;
 }
 
 vector<vector<double>> Circuit::D() {
-    int m_vars = countTotalExtraVariables();
-    if (m_vars == 0) return {};
-    vector<vector<double>> d_matrix(m_vars, vector<double>(m_vars, 0.0));
-
-    if (delta_t > 0) {
-        for (size_t k = 0; k < inductors.size(); ++k) {
-            int inductor_var_idx = voltageSources.size() + k;
-            d_matrix[inductor_var_idx][inductor_var_idx] = -(inductors[k].inductance / delta_t);
+    int extra_vars = countTotalExtraVariables();
+    vector<vector<double>> result(extra_vars, vector<double>(extra_vars, 0.0));
+    
+    // Diodes in forward or reverse conducting state contribute to D matrix
+    for (const auto& d : diodes) {
+        if (d.getState() == DiodeState::STATE_FORWARD_ON || d.getState() == DiodeState::STATE_REVERSE_ON) {
+            int branch_index = d.getBranchIndex();
+            if (branch_index >= 0 && branch_index < extra_vars) {
+                result[branch_index][branch_index] = 1.0; // Diode current unknown, so placeholder
+            }
         }
     }
-    return d_matrix;
+    
+    return result;
 }
 
 vector<double> Circuit::J() {
-    int num_non_gnd_nodes = countNonGroundNodes();
-    vector<double> j_vector(num_non_gnd_nodes, 0.0);
-
-    for (const auto &cs: currentSources) {
-        int p_node_idx = getNodeMatrixIndex(cs.node1);
-        int n_node_idx = getNodeMatrixIndex(cs.node2);
-        if (p_node_idx != -1) j_vector[p_node_idx] += cs.value;
-        if (n_node_idx != -1) j_vector[n_node_idx] -= cs.value;
+    int extra_vars = countTotalExtraVariables();
+    vector<double> result(extra_vars, 0.0);
+    
+    // Voltage sources contribute to J vector
+    for (size_t i = 0; i < voltageSources.size(); ++i) {
+        result[i] = voltageSources[i].value;
     }
-
-    if (delta_t > 0) {
-        for (const auto &cap: capacitors) {
-            double cap_rhs_term = (cap.capacitance / delta_t) * cap.prevVoltage;
-            int idx1 = getNodeMatrixIndex(cap.node1);
-            int idx2 = getNodeMatrixIndex(cap.node2);
-            if (idx1 != -1) j_vector[idx1] += cap_rhs_term;
-            if (idx2 != -1) j_vector[idx2] -= cap_rhs_term;
+    
+    // Inductors contribute to J vector
+    for (size_t i = 0; i < inductors.size(); ++i) {
+        int ind_index = voltageSources.size() + i;
+        if (ind_index < extra_vars) {
+            // For backward Euler: v_L(n+1) = L/dt * (i_L(n+1) - i_L(n))
+            // Rearranging: -L/dt * i_L(n+1) = -L/dt * i_L(n) - v_L(n+1)
+            // So the term added to RHS is -L/dt * i_L(n)
+            result[ind_index] = -inductors[i].inductance / delta_t * inductors[i].prevCurrent;
         }
     }
-    return j_vector;
+    
+    return result;
 }
 
 vector<double> Circuit::E() {
-    int m_vars = countTotalExtraVariables();
-    if (m_vars == 0) return {};
-    vector<double> e_vector(m_vars, 0.0);
-
-    for (size_t j = 0; j < voltageSources.size(); ++j) {
-        e_vector[j] = voltageSources[j].value;
-    }
-
-    if (delta_t > 0) {
-        for (size_t k = 0; k < inductors.size(); ++k) {
-            int inductor_row = voltageSources.size() + k;
-            e_vector[inductor_row] = -(inductors[k].inductance / delta_t) * inductors[k].prevCurrent;
+    int n = countNonGroundNodes();
+    vector<double> result(n, 0.0);
+    
+    // Current sources contribute to E vector
+    for (const auto& cs : currentSources) {
+        int n1_index = getNodeMatrixIndex(cs.node1);
+        int n2_index = getNodeMatrixIndex(cs.node2);
+        
+        if (n1_index != -1) {
+            result[n1_index] += cs.value;
+        }
+        if (n2_index != -1) {
+            result[n2_index] -= cs.value;
         }
     }
-
-    for (const auto& d : diodes) {
-        if (d.getState() == STATE_FORWARD_ON) {
-            int diode_row = d.getBranchIndex();
-            e_vector[diode_row] = d.getForwardVoltage();
-        } else if (d.getState() == STATE_REVERSE_ON) {
-            int diode_row = d.getBranchIndex();
-            e_vector[diode_row] = -d.getZenerVoltage();
+    
+    // Capacitors contribute to E vector
+    for (const auto& cap : capacitors) {
+        int n1_index = getNodeMatrixIndex(cap.node1);
+        int n2_index = getNodeMatrixIndex(cap.node2);
+        double i_cap = cap.capacitance / delta_t * (cap.node1->getVoltage() - cap.node2->getVoltage() - cap.prevVoltage);
+        
+        if (n1_index != -1) {
+            result[n1_index] += i_cap;
+        }
+        if (n2_index != -1) {
+            result[n2_index] -= i_cap;
         }
     }
-    return e_vector;
+    
+    return result;
 }
 
 // --- MODIFIED ---
@@ -328,7 +353,7 @@ void Circuit::set_MNA_A(AnalysisType type, double frequency) {
         // Impedances for L and C
         const complex<double> j(0.0, 1.0);
         for (const auto &cap : capacitors) {
-            complex<double> impedance = 1.0 / (j * frequency * cap.capacitance);
+            complex<double> impedance = 1.0 / (j * 2.0 * M_PI * frequency * cap.capacitance);
             complex<double> admittance = 1.0 / impedance;
             int idx1 = getNodeMatrixIndex(cap.node1);
             int idx2 = getNodeMatrixIndex(cap.node2);
@@ -341,7 +366,7 @@ void Circuit::set_MNA_A(AnalysisType type, double frequency) {
         }
 
         for (const auto &ind : inductors) {
-            complex<double> impedance = j * frequency * ind.inductance;
+            complex<double> impedance = j * 2.0 * M_PI * frequency * ind.inductance;
             complex<double> admittance = 1.0 / impedance;
             int idx1 = getNodeMatrixIndex(ind.node1);
             int idx2 = getNodeMatrixIndex(ind.node2);
@@ -379,7 +404,40 @@ void Circuit::set_MNA_A(AnalysisType type, double frequency) {
         int m = countTotalExtraVariables();
 
         MNA_A.assign(n + m, vector<double>(n + m, 0.0));
-        // ... (rest of the original matrix construction)
+        
+        // Fill G matrix
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                MNA_A[i][j] = g_mat[i][j];
+            }
+        }
+        
+        // Fill B matrix
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < m; j++) {
+                if (!b_mat.empty() && i < b_mat.size() && j < b_mat[0].size()) {
+                    MNA_A[i][n + j] = b_mat[i][j];
+                }
+            }
+        }
+        
+        // Fill C matrix
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < n; j++) {
+                if (!c_mat.empty() && i < c_mat.size() && j < c_mat[0].size()) {
+                    MNA_A[n + i][j] = c_mat[i][j];
+                }
+            }
+        }
+        
+        // Fill D matrix
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < m; j++) {
+                if (!d_mat.empty() && i < d_mat.size() && j < d_mat[0].size()) {
+                    MNA_A[n + i][n + j] = d_mat[i][j];
+                }
+            }
+        }
     }
 }
 
@@ -470,29 +528,3 @@ int Circuit::countNonGroundNodes() const {
 }
 
 
-bool Circuit::renameNode(const string& oldName, const string& newName,
-                         bool& errorOldNameNotFound, bool& errorNewNameExists, bool& errorIsGround) {
-    errorOldNameNotFound = false;
-    errorNewNameExists = false;
-    errorIsGround = false;
-
-    Node* nodeToRename = findNode(oldName);
-    if (!nodeToRename) {
-        errorOldNameNotFound = true;
-        return false; // Failure
-    }
-
-    if (nodeToRename->isGround) {
-        errorIsGround = true;
-        return false; // Failure
-    }
-
-    Node* existingNodeWithNewName = findNode(newName);
-    if (existingNodeWithNewName) {
-        errorNewNameExists = true;
-        return false; // Failure
-    }
-
-    nodeToRename->name = newName;
-    return true; // Success
-}

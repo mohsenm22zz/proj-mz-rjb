@@ -9,7 +9,7 @@
 using namespace std;
 
 struct GraphicalCircuit {
-    vector<shared_ptr<Component>> components;=
+    vector<shared_ptr<Component>> components;
     vector<pair<pair<double, double>, pair<double, double>>> wires;
 };
 

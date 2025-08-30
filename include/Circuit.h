@@ -48,6 +48,13 @@ public:
 
     vector<vector<complex<double>>> MNA_A_Complex;
     vector<complex<double>> MNA_RHS_Complex;
+    
+    vector<vector<double>> G();
+    vector<vector<double>> B();
+    vector<vector<double>> C();
+    vector<vector<double>> D();
+    vector<double> J();
+    vector<double> E();
 
     void addNode(const string& name);
     Node* findNode(const string& name);

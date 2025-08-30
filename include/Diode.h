@@ -39,7 +39,9 @@ public:
 private:
     DiodeType diodeType;
     DiodeState currentState;
+public:
     double forwardVoltage;
+private:
     double zenerVoltage;
     int branchIndex;
     double current;

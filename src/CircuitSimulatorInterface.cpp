@@ -5,6 +5,10 @@
 #include <sstream>
 #include <cmath>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 extern "C" {
     void* CreateCircuit() {
         try {
@@ -178,6 +182,24 @@ extern "C" {
             return CIRCUIT_SIM_ERROR_ANALYSIS_FAILED;
         }
     }
+    
+    int RunPhaseAnalysis(void* circuit, const char* sourceName, double baseFreq, double startPhase, double stopPhase, int numPoints) {
+        if (!circuit || !sourceName) {
+            return CIRCUIT_SIM_ERROR_INVALID_ARGUMENT;
+        }
+        
+        if (baseFreq <= 0 || numPoints <= 0) {
+            return CIRCUIT_SIM_ERROR_INVALID_ARGUMENT;
+        }
+        
+        try {
+            phaseSweepAnalysis(*static_cast<Circuit*>(circuit), sourceName, baseFreq, startPhase, stopPhase, numPoints);
+            return CIRCUIT_SIM_SUCCESS;
+        }
+        catch (...) {
+            return CIRCUIT_SIM_ERROR_ANALYSIS_FAILED;
+        }
+    }
 
     int GetNodeVoltage(void* circuit, const char* nodeName, double* voltage) {
         if (!circuit || !nodeName || !voltage) {
@@ -251,6 +273,26 @@ extern "C" {
         for (const auto& point : node->ac_sweep_history) {
             if (count >= maxCount) break;
             frequencies[count] = point.first;
+            magnitudes[count] = point.second;
+            count++;
+        }
+        return count;
+    }
+    
+    int GetNodePhaseSweepHistory(void* circuit, const char* nodeName, double* phases, double* magnitudes, int maxCount) {
+        if (!circuit || !nodeName || !phases || !magnitudes || maxCount <= 0) {
+            return CIRCUIT_SIM_ERROR_INVALID_ARGUMENT;
+        }
+        
+        Node* node = static_cast<Circuit*>(circuit)->findNode(nodeName);
+        if (!node) {
+            return CIRCUIT_SIM_ERROR_NOT_FOUND;
+        }
+        
+        int count = 0;
+        for (const auto& point : node->phase_sweep_history) {
+            if (count >= maxCount) break;
+            phases[count] = point.first;
             magnitudes[count] = point.second;
             count++;
         }

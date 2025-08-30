@@ -68,7 +68,6 @@ namespace wpfUI
 
         private void AddComponent_Click(object sender, RoutedEventArgs e)
         {
-            // remove later
             if (_isCircuitLocked)
             {
                 MessageBox.Show("Cannot add new components while circuit is wired.", "Circuit Locked");
@@ -292,6 +291,10 @@ namespace wpfUI
                 return;
             }
 
+            var netlistWindow = new NetlistWindow(netlistCommands);
+            netlistWindow.Owner = this;
+            netlistWindow.ShowDialog();
+
             using (var simulator = new CircuitSimulatorService())
             {
                 try
@@ -319,6 +322,8 @@ namespace wpfUI
                     }
 
                     bool success = false;
+                    var plotWindow = new PlotWindow { Owner = this };
+
                     switch (_simulationParameters.CurrentAnalysis)
                     {
                         case SimulationParameters.AnalysisType.DCOperatingPoint:
@@ -336,17 +341,17 @@ namespace wpfUI
                                 resultsWindow.Show();
                             }
                             break;
+
                         case SimulationParameters.AnalysisType.Transient:
                             success = simulator.RunTransientAnalysis(_simulationParameters.MaxTimestep, _simulationParameters.StopTime);
                              if (success)
                             {
-                                var plotWindow = new PlotWindow();
-                                plotWindow.Owner = this;
                                 var itemsToPlot = _probedItems.Any() ? _probedItems.ToArray() : simulator.GetNodeNames();
-                                plotWindow.LoadData(simulator, itemsToPlot);
+                                plotWindow.LoadTransientData(simulator, itemsToPlot);
                                 plotWindow.Show();
                             }
                             break;
+
                         case SimulationParameters.AnalysisType.ACSweep:
                             string acSource = netlistCommands.FirstOrDefault(c => c.StartsWith("ACV"))?.Split(' ')[1] ?? "";
                             if (string.IsNullOrEmpty(acSource))
@@ -355,6 +360,40 @@ namespace wpfUI
                                 return;
                             }
                             success = simulator.RunACAnalysis(acSource, _simulationParameters.StartFrequency, _simulationParameters.StopFrequency, _simulationParameters.NumberOfPoints, _simulationParameters.SweepType);
+                            if(success)
+                            {
+                                var itemsToPlot = _probedItems.Any() ? _probedItems.Where(p => !p.StartsWith("I(")).ToArray() : simulator.GetNodeNames();
+                                if (!itemsToPlot.Any())
+                                {
+                                     MessageBox.Show("Please probe at least one node to plot for AC analysis.", "Plot Error");
+                                     return;
+                                }
+                                plotWindow.LoadACData(simulator, itemsToPlot);
+                                plotWindow.Show();
+                            }
+                            break;
+                        
+                        case SimulationParameters.AnalysisType.PhaseSweep:
+                            string phaseSource = netlistCommands.FirstOrDefault(c => c.StartsWith("ACV"))?.Split(' ')[1] ?? "";
+                            if (string.IsNullOrEmpty(phaseSource))
+                            {
+                                MessageBox.Show("Phase Sweep requires an ACV component in the circuit.", "Simulation Error");
+                                return;
+                            }
+                            // Fix: RunPhaseAnalysis returns an int, not a bool
+                            int result = simulator.RunPhaseAnalysis(phaseSource, _simulationParameters.BaseFrequency, _simulationParameters.StartPhase, _simulationParameters.StopPhase, _simulationParameters.NumberOfPoints);
+                            success = result > 0; // Consider success if result > 0
+                            if(success)
+                            {
+                                var itemsToPlot = _probedItems.Any() ? _probedItems.Where(p => !p.StartsWith("I(")).ToArray() : simulator.GetNodeNames();
+                                if (!itemsToPlot.Any())
+                                {
+                                     MessageBox.Show("Please probe at least one node to plot for Phase analysis.", "Plot Error");
+                                     return;
+                                }
+                                plotWindow.LoadPhaseData(simulator, itemsToPlot);
+                                plotWindow.Show();
+                            }
                             break;
                     }
 
@@ -365,9 +404,10 @@ namespace wpfUI
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"An error occurred during simulation setup: {ex.Message}", "Error");
+                    MessageBox.Show($"An error occurred during simulation: {ex.Message}", "Error");
                 }
             }
         }
     }
 }
+

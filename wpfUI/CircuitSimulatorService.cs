@@ -38,6 +38,9 @@ namespace wpfUI
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         private static extern bool RunACAnalysis(IntPtr circuit, string sourceName, double startFreq, double stopFreq, int numPoints, string sweepType);
+        
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+        private static extern int RunPhaseAnalysis(IntPtr circuit, string sourceName, double baseFreq, double startPhase, double stopPhase, int numPoints);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         private static extern double GetNodeVoltage(IntPtr circuit, string nodeName);
@@ -50,6 +53,9 @@ namespace wpfUI
             
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         private static extern int GetNodeSweepHistory(IntPtr circuit, string nodeName, [Out] double[] frequencies, [Out] double[] magnitudes, int maxCount);
+        
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+        private static extern int GetNodePhaseSweepHistory(IntPtr circuit, string nodeName, [Out] double[] phases, [Out] double[] magnitudes, int maxCount);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         private static extern int GetComponentCurrentHistory(IntPtr circuit, string componentName, [Out] double[] timePoints, [Out] double[] currents, int maxCount);
@@ -78,6 +84,7 @@ namespace wpfUI
         public bool RunDCAnalysis() => RunDCAnalysis(circuitHandle);
         public bool RunTransientAnalysis(double stepTime, double stopTime) => RunTransientAnalysis(circuitHandle, stepTime, stopTime);
         public bool RunACAnalysis(string sourceName, double startFreq, double stopFreq, int numPoints, string sweepType = "Linear") => RunACAnalysis(circuitHandle, sourceName, startFreq, stopFreq, numPoints, sweepType);
+        public int RunPhaseAnalysis(string sourceName, double baseFreq, double startPhase, double stopPhase, int numPoints) => RunPhaseAnalysis(circuitHandle, sourceName, baseFreq, startPhase, stopPhase, numPoints);
         public double GetNodeVoltage(string nodeName) => GetNodeVoltage(circuitHandle, nodeName);
 
         public string[] GetNodeNames()
@@ -136,6 +143,17 @@ namespace wpfUI
             Array.Resize(ref frequencies, count);
             Array.Resize(ref magnitudes, count);
             return Tuple.Create(frequencies, magnitudes);
+        }
+        
+        public Tuple<double[], double[]> GetNodePhaseSweepHistory(string nodeName)
+        {
+            const int maxPoints = 2000;
+            double[] phases = new double[maxPoints];
+            double[] magnitudes = new double[maxPoints];
+            int count = GetNodePhaseSweepHistory(circuitHandle, nodeName, phases, magnitudes, maxPoints);
+            Array.Resize(ref phases, count);
+            Array.Resize(ref magnitudes, count);
+            return Tuple.Create(phases, magnitudes);
         }
         
         // --- NEW: Public method to get all DC results for the results window ---
